@@ -1,5 +1,7 @@
 # Measuring Inter-Brain Synchrony: Methods and Pitfalls
 
+[![DOI](https://zenodo.org/badge/580886256.svg)](https://zenodo.org/badge/latestdoi/580886256)
+
 Marten de Vries
 
 > Collecting EEG data for two participants simultaneously during a task (i.e.,
