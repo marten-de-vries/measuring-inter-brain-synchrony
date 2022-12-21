@@ -1,0 +1,121 @@
+classifier,session,measure,value
+SVM without P3 ERP,5,balanced accuracy,0.49469417833456153
+SVM without P3 ERP,5,sensitivity,0.5826086956521739
+SVM without P3 ERP,5,specificity,0.4067796610169492
+SVM without P3 ERP,7,balanced accuracy,0.4970960536113179
+SVM without P3 ERP,7,sensitivity,0.5764705882352941
+SVM without P3 ERP,7,specificity,0.4177215189873418
+SVM without P3 ERP,15,balanced accuracy,0.5123762376237624
+SVM without P3 ERP,15,sensitivity,0.5247524752475248
+SVM without P3 ERP,15,specificity,0.5
+SVM without P3 ERP,17,balanced accuracy,0.5074893617021277
+SVM without P3 ERP,17,sensitivity,0.632
+SVM without P3 ERP,17,specificity,0.3829787234042553
+SVM without P3 ERP,20,balanced accuracy,0.4948308964702407
+SVM without P3 ERP,20,sensitivity,0.6126126126126126
+SVM without P3 ERP,20,specificity,0.3770491803278688
+SVM without P3 ERP,28,balanced accuracy,0.5561144499608048
+SVM without P3 ERP,28,sensitivity,0.6627906976744186
+SVM without P3 ERP,28,specificity,0.449438202247191
+SVM without P3 ERP,30,balanced accuracy,0.60742246311352
+SVM without P3 ERP,30,sensitivity,0.6172839506172839
+SVM without P3 ERP,30,specificity,0.5975609756097561
+SVM without P3 ERP,40,balanced accuracy,0.5531698824894821
+SVM without P3 ERP,40,sensitivity,0.6637168141592921
+SVM without P3 ERP,40,specificity,0.4426229508196721
+SVM,5,balanced accuracy,0.4360353721444363
+SVM,5,sensitivity,0.6347826086956522
+SVM,5,specificity,0.23728813559322035
+SVM,7,balanced accuracy,0.4854058078927774
+SVM,7,sensitivity,0.7176470588235294
+SVM,7,specificity,0.25316455696202533
+SVM,15,balanced accuracy,0.43206820682068203
+SVM,15,sensitivity,0.4752475247524752
+SVM,15,specificity,0.3888888888888889
+SVM,17,balanced accuracy,0.43838297872340426
+SVM,17,sensitivity,0.664
+SVM,17,specificity,0.2127659574468085
+SVM,20,balanced accuracy,0.47267759562841527
+SVM,20,sensitivity,0.6666666666666666
+SVM,20,specificity,0.2786885245901639
+SVM,28,balanced accuracy,0.4594329762215835
+SVM,28,sensitivity,0.5930232558139535
+SVM,28,specificity,0.3258426966292135
+SVM,30,balanced accuracy,0.558641975308642
+SVM,30,sensitivity,0.6172839506172839
+SVM,30,specificity,0.5
+SVM,40,balanced accuracy,0.5128391121427535
+SVM,40,sensitivity,0.6814159292035398
+SVM,40,specificity,0.3442622950819672
+Random forest,5,balanced accuracy,0.5203389830508475
+Random forest,5,sensitivity,0.6
+Random forest,5,specificity,0.4406779661016949
+Random forest,7,balanced accuracy,0.46046165301563663
+Random forest,7,sensitivity,0.5411764705882353
+Random forest,7,specificity,0.379746835443038
+Random forest,15,balanced accuracy,0.5242024202420241
+Random forest,15,sensitivity,0.6039603960396039
+Random forest,15,specificity,0.4444444444444444
+Random forest,17,balanced accuracy,0.4567659574468085
+Random forest,17,sensitivity,0.488
+Random forest,17,specificity,0.425531914893617
+Random forest,20,balanced accuracy,0.45510264362723385
+Random forest,20,sensitivity,0.5495495495495496
+Random forest,20,specificity,0.36065573770491804
+Random forest,28,balanced accuracy,0.4350013065064019
+Random forest,28,sensitivity,0.47674418604651164
+Random forest,28,specificity,0.39325842696629215
+Random forest,30,balanced accuracy,0.503613369467028
+Random forest,30,sensitivity,0.5925925925925926
+Random forest,30,specificity,0.4146341463414634
+Random forest,40,balanced accuracy,0.5443203249673582
+Random forest,40,sensitivity,0.6460176991150443
+Random forest,40,specificity,0.4426229508196721
+Logistic regression,5,balanced accuracy,0.4509948415622697
+Logistic regression,5,sensitivity,0.4782608695652174
+Logistic regression,5,specificity,0.423728813559322
+Logistic regression,7,balanced accuracy,0.4894266567386448
+Logistic regression,7,sensitivity,0.611764705882353
+Logistic regression,7,specificity,0.3670886075949367
+Logistic regression,15,balanced accuracy,0.45193894389438943
+Logistic regression,15,sensitivity,0.44554455445544555
+Logistic regression,15,specificity,0.4583333333333333
+Logistic regression,17,balanced accuracy,0.5194042553191489
+Logistic regression,17,sensitivity,0.592
+Logistic regression,17,specificity,0.44680851063829785
+Logistic regression,20,balanced accuracy,0.4772559444690592
+Logistic regression,20,sensitivity,0.4954954954954955
+Logistic regression,20,specificity,0.45901639344262296
+Logistic regression,28,balanced accuracy,0.479945126731121
+Logistic regression,28,sensitivity,0.47674418604651164
+Logistic regression,28,specificity,0.48314606741573035
+Logistic regression,30,balanced accuracy,0.4905901836796146
+Logistic regression,30,sensitivity,0.4567901234567901
+Logistic regression,30,specificity,0.524390243902439
+Logistic regression,40,balanced accuracy,0.49057014362396634
+Logistic regression,40,sensitivity,0.5221238938053098
+Logistic regression,40,specificity,0.45901639344262296
+Multi-layer perceptron,5,balanced accuracy,0.4619012527634488
+Multi-layer perceptron,5,sensitivity,0.6695652173913044
+Multi-layer perceptron,5,specificity,0.2542372881355932
+Multi-layer perceptron,7,balanced accuracy,0.47997021593447503
+Multi-layer perceptron,7,sensitivity,0.6941176470588235
+Multi-layer perceptron,7,specificity,0.26582278481012656
+Multi-layer perceptron,15,balanced accuracy,0.46857810781078113
+Multi-layer perceptron,15,sensitivity,0.6732673267326733
+Multi-layer perceptron,15,specificity,0.2638888888888889
+Multi-layer perceptron,17,balanced accuracy,0.5010212765957447
+Multi-layer perceptron,17,sensitivity,0.768
+Multi-layer perceptron,17,specificity,0.23404255319148937
+Multi-layer perceptron,20,balanced accuracy,0.49276325505833707
+Multi-layer perceptron,20,sensitivity,0.6576576576576577
+Multi-layer perceptron,20,specificity,0.32786885245901637
+Multi-layer perceptron,28,balanced accuracy,0.49973869871962373
+Multi-layer perceptron,28,sensitivity,0.6511627906976745
+Multi-layer perceptron,28,specificity,0.34831460674157305
+Multi-layer perceptron,30,balanced accuracy,0.5219060523938572
+Multi-layer perceptron,30,sensitivity,0.5925925925925926
+Multi-layer perceptron,30,specificity,0.45121951219512196
+Multi-layer perceptron,40,balanced accuracy,0.5141447845640505
+Multi-layer perceptron,40,sensitivity,0.7168141592920354
+Multi-layer perceptron,40,specificity,0.3114754098360656

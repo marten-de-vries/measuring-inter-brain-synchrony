@@ -1,0 +1,171 @@
+% !TEX root = thesis_draft.tex
+
+\section{General Discussion}
+
+We investigated the sensitivity of a hyperscanning data analysis to different
+methodological choices by performing an analysis of inter-brain synchrony (IBS)
+data recorded during \textcite{newman_effects_2021}'s tacit coordination task.
+We built a complete analysis pipeline that tested three IBS measures: the phase
+locking value (PLV), the circular correlation coefficient (CCorr) and the
+imaginary part of coherency (ImagCoh). Contrary to our expectations, we found
+the analysis outcome to be sensitive to relatively minor changes to this
+pipeline.
+
+All studied measures of IBS rely on a frequency analysis
+step to transform the raw EEG data into the frequency domain. We found that
+varying the resolution of the output or the exact tapering method used to
+control spectral leakage resulted in different IBS values. The CCorr
+measure was especially sensitive to such changes. As long as you are comparing
+apples to apples, i.e. only values that have been calculated with the same
+methodology, this variation should not be a problem. But it is a reason to
+caution against comparing raw IBS values across experiments or analyses. Using
+statistical methods that can take this into account, like permutation tests
+that will make the same assumptions when generating a null distribution, is
+recommended.
+
+\textcite{burgess_interpretation_2013} found the CCorr measure to be less
+sensitive to detecting spurious IBS than other measures. Our study did not
+encounter this issue, because the permutation tests did not detect any IBS. On
+the other hand, our simulation study clearly illustrates
+\textcite{kayhan_deep_2022}'s observation that PLV only measures the consistency
+of the phase components of the EEG signals coming from each participant, not
+whether they co-vary. Most strikingly, we see it completely ignore a strong
+negative linear relation between the two phase components (see
+Figure~\ref{fig:simulation_local_search}). The ImagCoh measure is hardest to
+evaluate. It seems to be less sensitive in general to changes in
+the data it is calculated upon. For example, in the simulation study, finding
+examples for different ImagCoh values was harder than for the other measures.
+Also, it only responded little to changes in the frequency analysis process. If
+it still picks up on `real' effects, it would be the best measure tested. But
+the fact that it is so insensitive, makes me doubtful about whether it would
+quantify such effects. In the end, weighing all the evidence, I would prefer
+using the CCorr measure for measuring IBS. But the PLV measure is also worth
+considering considering. While it has its flaws, its ubiquitousness in the
+hyperscanning literature makes it more familiar to the average reader.
+
+\subsection{Contributions}
+
+Next to the research project's results and pipeline description, we make
+available validated implementations of the PLV, CCorr and ImagCoh measures for
+both MATLAB and R. During the project, we also developed a MATLAB implementation
+of \textcite{mahmood_robust_2022}'s robust circular correlation measure
+(Algorithm~\ref{alg:robust}), although the implementation is slow and as
+discussed previously the measure itself is not well-defined from a theoretical
+point of view. Finally, in the end of the simulation study section, we
+describe a way to perform a power analysis for tests used in IBS studies. It
+reuses the method the simulation study uses to generate fake data for a given
+IBS value (Algorithm \ref{alg:optimize-measures}). As a consequence, the
+test will only have access to the phase component of the signal, as the
+simulation study ignored amplitude components. But that can still be useful for
+power analyses of tests that target phase-based measures only.
+
+\subsection{Limitations}
+
+This research project, especially the simulation study part, has been heavily
+focused on phase-based IBS measures. The only exception is the ImagCoh measure.
+\textcite{ayrolles_hypyp_2021} suggest phase-based measures are better at
+measuring ``ongoing cognitive processing'', while amplitude-based measures are
+better for measuring ``cognitive state''. It would be interesting to also
+consider other amplitude-based measures, like the `power envelope correlation
+between orthogonalized signals' measure described by
+\textcite{hipp_large-scale_2012}. That measure is also used by
+\textcite{dikker_crowdsourcing_2021}, who call it `projected power correlation'
+instead. Another measure that was considered for inclusion in this study is the
+Kraskov mutual information measure \parencite{kraskov_estimating_2004}.
+\textcite{burgess_interpretation_2013} recommends it alongside the CCorr
+measure. But while \citeauthor{burgess_interpretation_2013}'s work seems to have
+single-handedly popularized the latter\footnote{Most discussions of the CCorr
+measure I have seen can be traced back to
+\textcite{burgess_interpretation_2013}'s work
+\parencite[to name just a few]{chen_trait_2021,farahzadi_towards_2021,kurihara_relationship_2022,wikstrom_inter-brain_2022,goldstein_brain--brain_2018,kingsbury_multi-brain_2020}.},
+the former seems to be have much less uptake. Perhaps it is due to the lack of
+implementations being available
+\footnote{\url{https://github.com/otoolej/mutual_info_kNN/blob/master/mi_cont_cont.m}
+comes the closest, but it is does not match
+\citeauthor{burgess_interpretation_2013}'s definition exactly. For one, it does
+not use an angular distance metric.}, or the more complex
+(information-theoretic) definitions. At least, that is the reason why it has not
+been included in the present project.
+
+Figures~\ref{fig:permutation_alpha},~\ref{fig:permutation_theta},~\ref{fig:slopes_alpha}~and~\ref{fig:slopes_theta}
+use topographical plots of the scalp that are a common sight in EEG research.
+While actual values are only available for the electrode sites, the visualization
+fits a surface to them to present a continuous image. While interpreting some of
+these figures during this project, this lead me to the wrong conclusions at
+times. For example, it is common to see extreme values around the edges of the
+scalp because the surface continues on outside the data's range for a bit. As a
+result, I switched to drawing Voronoi cells around the electrodes instead when
+analysing the prediction data (see
+Figures~\ref{fig:logistic_coef}~and~\ref{fig:svm_indiv_topo}). Of course, this
+approach also has its downsides. It will be less familiar to researchers in the
+field, and the discrete nature of the visualization is unrealistic.
+
+IBS permutation tests that generate their null hypothesis distribution by
+shuffling dyads, as we did in the permutation test analysis section, are a nice
+way to determine whether synchrony is just task-related, or due to cooperation
+within the dyad. That said, if such a test yields a significant result, there
+are other possible explanations. For example, if the two participants both have
+a faster response time than other dyads, this could lead to the test finding
+synchrony between them that is `just' due to their early motor response. Such a
+response would be solely task-related, not due to the participants working
+together or interacting otherwise. It is something to keep in mind when
+designing IBS experiments.
+
+\begin{figure}[!htpb]
+  \resizebox{\linewidth}{!}{\input{causal.tex}}
+  \caption{A diagram of the causal structure of \textcite{newman_effects_2021}'s experimental setup, and its interaction with the accuracy classifiers described in this thesis. Stimuli are shown in yellow, while recorded measurements are shown in green. Calculated values are shown in grey.}
+  \label{fig:causal}
+\end{figure}
+
+Finally, it is worth reflecting a bit on the prediction task. Considering that
+we did not find significant IBS previously, it always was a long shot. But even
+if we had, it is worth mapping out the causal path that would lead to a correct
+prediction in \textcite{newman_effects_2021}'s task. See Appendix~\ref{app:task}
+for more information about the task. Figure~\ref{fig:causal} does exactly that.
+When a stimulus comes in, both participants give a response, and get feedback
+based on if they both picked the same image or shape. They use that feedback to
+adjust their mental model of what the other is doing, which they will use in
+future trials. We record their brain activity while that is going on, run it
+through the IBS pipeline, and get out IBS values (PLV, CCorr \& ImagCoh in the
+diagram) and normal EEG values (P3 single trial ERP values). These are then in
+turn used by the classifier to make a prediction of the accuracy in the current
+trial. Now, what would be the mechanism that increases the odds of predicting
+whether the dyad chose the same image or shape?
+
+There are multiple possible ways. Theoretically, a group of images or shapes dissimilar to
+previous examples could lead to a P3 ERP, and would most likely decrease their
+chances of picking the same image or shape. But as the images are similar switching only
+their colours, such an advantage would be unlikely to last long. Alternatively,
+one of the participants could `simulate' what the other is doing, thereby
+mirroring the other's brain activity. The IBS measures could then pick up on
+this, which the classifier could use to predict a correct response. This is the
+`theory of mind' explanation. Personally, I think it unlikely that the
+functional activity would (1) occur simultaneously enough for the IBS measures
+to pick up on and (2) would result in a strong, identifiable EEG signal
+considering that these seem to me relatively abstract, high-level and complex
+thoughts. Yet another way combines the two. In this case, we assume that
+integrating (unexpected) feedback causes a P3, or some other neural activity
+that the IBS measures pick up on due to it presumably being shared across
+participants. The problem with this explanation is that the activity would need
+to last into the start of the next trial. There might be other hypotheses, but
+it is clear that it is not a trivial exercise to find a mechanism that explains
+why predicting performance would be possible in the first place. Considering
+our results, perhaps it is not possible. On the other hand, you could make similar
+arguments for \textcite{de_vico_fallani_defecting_2010}'s prediction task, which
+did succeed. Still, considering the causal structure of the problem is probably
+a worthwhile exercise when attempting prediction using IBS data.
+
+\subsection{Conclusion}
+While a lot has been written about the mathematical definitions of different
+IBS measures, it would be very nice if more intuitive descriptions or
+visualizations became available. Figure~\ref{fig:simulation_local_search} is my
+own attempt at this, but it has its limitations. It is still my favourite
+figure in this thesis, though!
+
+It is my hope this research project can contribute to the design of future IBS
+studies using EEG, by showing the consequences and pitfalls of different
+methodological choices. As mentioned in the introduction, the standardization of
+IBS research methods has only just started. But it is encouraging to see that
+early contributions, like \textcite{burgess_interpretation_2013}'s
+recommendation to use the CCorr measure, are being taken into account in a lot
+of studies now appearing.

@@ -1,0 +1,491 @@
+# Setup
+
+```{r}
+setwd('/home/marten/AI7/MasterProject/stats')
+library(reticulate)
+use_virtualenv('./venv')
+
+library(tidyverse)
+library(eegUtils)
+library(ggvoronoi)
+
+dat <- read_csv('results/train.csv')
+dat %>% nrow()
+
+circle <- data.frame(x = 95*(cos(seq(0, 2*pi, length.out = 2500))),
+                     y = 95*(sin(seq(0, 2*pi, length.out = 2500))),
+                     group = rep(1,2500))
+
+dat %>%
+  ggplot(aes(ccorr_alpha_Pz, plv_alpha_Pz, colour=accuracy)) + geom_point()
+dat %>%
+  ggplot(aes(plv_alpha_Pz, imagcoh_alpha_Pz, colour=accuracy)) + geom_point()
+dat %>%
+  ggplot(aes(imagcoh_alpha_Pz, ccorr_alpha_Pz, colour=accuracy)) + geom_point()
+dat %>%
+  ggplot(aes(p3subj1_Pz, p3subj2_Pz, colour=accuracy)) + geom_point()
+
+```
+
+```{python}
+import pandas
+import numpy
+
+from sklearn.model_selection import GroupKFold, StratifiedKFold, RandomizedSearchCV
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
+
+from imblearn.over_sampling import RandomOverSampler
+from imblearn.pipeline import make_pipeline
+from imblearn.metrics import sensitivity_score, specificity_score
+
+from scipy.stats import loguniform
+
+import csv
+
+# control for stim_type/wm_load?
+# predict accuracy
+# normalize inputs?
+# random sample imbalanced data? Despite using 'StratifiedGroupKFold', it's still imbalanced.
+
+dat = pandas.read_csv('results/train.csv')
+
+sc = StandardScaler()
+ros = RandomOverSampler(random_state=42)
+gkf = GroupKFold(n_splits=10)
+
+features = list(dat.columns)[6:]
+X = dat[features].to_numpy()
+y = dat['accuracy'].to_numpy()
+groups = dat['session'].to_numpy()
+```
+
+# Logistic regression
+
+```{python}
+lr = LogisticRegression(penalty='l1', solver='liblinear')
+p = make_pipeline(ros, sc, lr)
+
+parameters = {'logisticregression__C': loguniform(1e-3, 1)}
+cv = RandomizedSearchCV(p, param_distributions=parameters, cv=gkf, return_train_score=True, n_iter=30, n_jobs=8, random_state=42, scoring='balanced_accuracy')
+result = cv.fit(X, y, groups=groups)
+pandas.DataFrame(result.cv_results_).to_csv('lr.csv')
+
+print(result.best_estimator_.named_steps['logisticregression'])
+named_coefs = zip(features, result.best_estimator_.named_steps['logisticregression'].coef_[0])
+
+with open('lr-coef.csv', 'w') as f:
+    w = csv.writer(f)
+    w.writerow(['measure', 'electrode', 'coefficient'])
+    for feature, coef in named_coefs:
+        measure, electrode = feature.rsplit('_', maxsplit=1)
+        w.writerow([measure, electrode, coef])
+
+```
+
+```{r}
+dat <- read_csv('lr.csv') %>%
+  pivot_longer(c(mean_test_score, std_test_score, mean_train_score, std_train_score), names_to=c('.value', 'type'), names_sep='_')
+max(filter(dat, type == 'test')$mean)
+
+plt <- ggplot(dat, aes(param_logisticregression__C, mean, ymin=mean - std, ymax=mean + std, color=type, shape=rank_test_score==1, group=type, fill=type)) +
+  geom_line() +
+  geom_point() +
+  geom_ribbon(alpha=0.5) +
+  scale_x_log10() +
+  geom_hline(yintercept=0.5) +
+  labs(x='C (smaller is more regularization)', y='mean balanced accuracy w/ std. dev.') +
+  guides(shape='none') +
+  theme_bw()
+ggsave('results/learning_curve_logistic.pdf', plt, width=12, height=8, units='cm')
+```
+
+## Plotting coefficients
+
+```{r}
+dat <- read_csv('lr-coef.csv')
+
+limit <- max(abs(dat$coefficient))
+plt <- dat %>%
+  electrode_locations() %>%
+  mutate(coefficient=if_else(coefficient == 0, NA_real_, coefficient),
+         electrode=if_else(is.na(coefficient), NA_character_, electrode)) %>%
+  ggplot(aes(x, y, label=electrode, fill=coefficient)) +
+    geom_voronoi(outline=circle, color='black') +
+    geom_head() +
+    coord_fixed() +
+    theme_void() +
+    facet_wrap(vars(measure)) +
+    scale_fill_viridis_c(limits=c(-limit, limit))
+ggsave('results/logistic_coef.pdf', plt, width=12, height=8, units='cm')
+
+```
+
+# SVM
+
+```{python}
+svm = SVC(kernel='rbf', verbose=True)
+parameters = {'svc__C': loguniform(1e-2, 1e6), 'svc__gamma': loguniform(1e-5, 1e1)}
+p = make_pipeline(ros, sc, svm)
+gscv = RandomizedSearchCV(p, param_distributions=parameters, cv=gkf, return_train_score=True, n_iter=30, n_jobs=8, random_state=42, scoring='balanced_accuracy')
+result = gscv.fit(X, y, groups=groups)
+pandas.DataFrame(result.cv_results_).to_csv('svm.csv')
+print(result.best_estimator_.named_steps['svc'])
+```
+
+```{r}
+dat <- read_csv('svm.csv') %>%
+  pivot_longer(c(mean_test_score, std_test_score, mean_train_score, std_train_score), names_to=c('.value', 'type'), names_sep='_') %>%
+  filter(type == 'test')
+
+max(dat$mean)
+plt <- ggplot(dat, aes(param_svc__C, param_svc__gamma, colour=mean, shape=rank_test_score==1, size=std)) +
+  geom_point() +
+  scale_colour_viridis_c() +
+  scale_x_log10() +
+  scale_y_log10() +
+  theme_bw() +
+  labs(x='C (smaller is more regularization)', y='SVM RBF gamma', size='std. dev.', colour='mean\nbalanced\naccuracy') +
+  guides(shape="none")
+
+ggsave('results/learning_curve_svm.pdf', plt, width=12, height=10, units='cm')
+```
+
+## Individual features
+
+```{python}
+from sklearn.model_selection import cross_val_score
+
+svm = SVC(kernel='rbf', C=2.716051144654847, gamma=0.014077923139972394)
+p = make_pipeline(ros, sc, svm)
+
+with open('individual.csv', 'w') as f:
+    w = csv.writer(f)
+    w.writerow(['feature', 'i', 'score'])
+    for i, feature in enumerate(features):
+        Xf = X[:, i].reshape(-1, 1)
+        for j, score in enumerate(cross_val_score(p, Xf, y, groups=groups, cv=gkf, n_jobs=8, scoring='balanced_accuracy')):
+           w.writerow([feature, j, score])
+           f.flush()
+
+```
+```{r}
+dat <- read_csv('individual.csv') %>%
+  mutate(feature=fct_reorder(feature, score, .fun='median')) %>%
+  # source: https://community.rstudio.com/t/split-a-string-in-a-dataframe-column/8054s
+  separate(feature, "_(?=[^_]*$)", into=c('type', 'electrode'), remove=FALSE)
+
+plt <- dat %>%
+  group_by(type, electrode) %>%
+  summarise(score=mean(score)) %>%
+  ggplot(aes(type, score)) +
+    geom_boxplot() +
+    geom_hline(yintercept=0.5, color='red') +
+    labs(x='feature type', y='balanced accuracy') +
+    theme_bw() +
+    coord_flip()
+ggsave('results/svm_indiv.pdf', plt, width=12, height=8, units='cm')
+
+ggplot(dat, aes(feature, score)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_bw()
+
+ggplot(filter(dat, str_detect(type, 'plv')), aes(feature, score)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_bw()
+ggplot(filter(dat, str_detect(type, 'ccorr')), aes(feature, score)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_bw()
+ggplot(filter(dat, str_detect(type, 'imagcoh')), aes(feature, score)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_bw()
+ggplot(filter(dat, str_detect(type, 'p3')), aes(feature, score)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_bw()
+
+plt <- dat %>%
+  group_by(type, electrode) %>%
+  summarise(score=mean(score)) %>%
+  electrode_locations() %>%
+  ggplot(aes(x, y, fill=score)) +
+    geom_voronoi(outline=circle, color='black') +
+    geom_head() +
+    facet_wrap(vars(type)) +
+    coord_fixed() +
+    scale_fill_viridis_c() +
+    theme_void()
+
+ggsave('results/svm_indiv_topo.pdf', plt, width=12, height=8, units='cm')
+```
+
+## Without P3
+```{python}
+svm = SVC(kernel='rbf', C=784.9159562555072, gamma=6.870101665590024e-05)
+p = make_pipeline(ros, sc, svm)
+
+Xsmall = X[:, ['p3' not in f for f in features]]
+scores = cross_val_score(p, Xsmall, y, groups=groups, cv=gkf, n_jobs=8, scoring='balanced_accuracy')
+print(f'Balanced accuracy: {scores.mean()} +- {scores.std()}')
+```
+
+# Random Forest
+
+```{python}
+rfc = RandomForestClassifier()
+p = make_pipeline(ros, sc, rfc)
+
+parameters = {'randomforestclassifier__n_estimators': range(1, 250), 'randomforestclassifier__max_features': range(1, 30)}
+cv = RandomizedSearchCV(p, param_distributions=parameters, cv=gkf, return_train_score=True, n_iter=30, n_jobs=8, random_state=42, scoring='balanced_accuracy')
+result = cv.fit(X, y, groups=groups)
+pandas.DataFrame(result.cv_results_).to_csv('rf.csv')
+
+print(result.best_estimator_.named_steps['randomforestclassifier'])
+
+```
+
+```{r}
+dat <- read_csv('rf.csv') %>%
+  pivot_longer(c(mean_test_score, std_test_score, mean_train_score, std_train_score), names_to=c('.value', 'type'), names_sep='_') %>%
+  filter(type == 'test')
+
+max(dat$mean)
+
+plt <- ggplot(dat, aes(param_randomforestclassifier__n_estimators, param_randomforestclassifier__max_features, shape=rank_test_score==1, colour=mean, size=std)) +
+  geom_point() +
+  scale_colour_viridis_c() +
+  labs(size='std. dev.', colour='mean\nbalanced\naccuracy', x='number of estimators', y='maximum amount of features', shape='chosen\nparameters') +
+  guides(shape='none') +
+  theme_bw()
+
+ggsave('results/learning_curve_rf.pdf', plt, width=12, height=10, units='cm')
+```
+
+# MLP
+
+```{python}
+mlpc = MLPClassifier((10,), random_state=42, solver='lbfgs', verbose=True)
+p = make_pipeline(ros, sc, mlpc)
+
+parameters = {'mlpclassifier__alpha': loguniform(1e-6, 1)}
+cv = RandomizedSearchCV(p, param_distributions=parameters, cv=gkf, return_train_score=True, n_iter=30, n_jobs=8, random_state=42, scoring='balanced_accuracy')
+result = cv.fit(X, y, groups=groups)
+pandas.DataFrame(result.cv_results_).to_csv('mlp.csv')
+
+print(result.best_estimator_.named_steps['mlpclassifier'])
+```
+
+
+```{r}
+dat <- read_csv('mlp.csv') %>%
+  pivot_longer(c(mean_test_score, std_test_score, mean_train_score, std_train_score), names_to=c('.value', 'type'), names_sep='_')
+
+max(filter(dat, type == 'test')$mean)
+
+plt <- ggplot(dat %>% filter(type=='test'), aes(param_mlpclassifier__alpha, shape=rank_test_score==1, mean, ymin=mean-std, ymax=mean+std)) +
+  geom_point() +
+  geom_line() +
+  geom_ribbon(alpha=0.5) +
+  scale_x_log10() +
+  theme_bw() +
+  labs(x='alpha (learning rate)', y='mean balanced accuracy w/ std. dev.') +
+  guides(shape='none')
+ggsave('results/learning_curve_mlp.pdf', plt, width=12, height=8, units='cm')
+```
+
+
+# Evaluation on the held-out test set
+
+```{python}
+dat_test = {n: (s[features].to_numpy(), s['accuracy'].to_numpy())
+            for n, s in pandas.read_csv('results/test.csv').groupby('session')}
+
+def print_measures(classifier, session, p, X_test, y_test):
+    with open('evaluation.csv', 'a') as f:
+        w = csv.writer(f)
+        if f.tell() == 0:
+            w.writerow(['classifier', 'session', 'measure', 'value'])
+        y_pred = p.predict(X_test)
+        w.writerow([classifier, session, 'balanced accuracy', balanced_accuracy_score(y_test, y_pred)])
+        w.writerow([classifier, session, 'sensitivity', sensitivity_score(y_test, y_pred)])
+        w.writerow([classifier, session, 'specificity', specificity_score(y_test, y_pred)])
+
+open('evaluation.csv', 'w').close()
+
+# SVM (without P3)
+svm = SVC(kernel='rbf', C=784.9159562555072, gamma=6.870101665590024e-05)
+p = make_pipeline(ros, sc, svm)
+Xsmall = X[:, ['p3' not in f for f in features]]
+p.fit(Xsmall, y)  # train on all training data
+
+for session, (X_test, y_test) in dat_test.items():
+    Xsmall_test = X_test[:, ['p3' not in f for f in features]]
+    print_measures('SVM without P3 ERP', session, p, Xsmall_test, y_test)
+
+p.fit(X, y)
+for session, (X_test, y_test) in dat_test.items():
+    print_measures('SVM', session, p, X_test, y_test)
+
+rfc = RandomForestClassifier(max_features=24, n_estimators=8)
+p = make_pipeline(ros, sc, rfc)
+p.fit(X, y)
+for session, (X_test, y_test) in dat_test.items():
+    print_measures('Random forest', session, p, X_test, y_test)
+  
+lr = LogisticRegression(C=0.023345864076016232, penalty='l1', solver='liblinear')
+p = make_pipeline(ros, sc, lr)
+p.fit(X, y)
+for session, (X_test, y_test) in dat_test.items():
+    print_measures('Logistic regression', session, p, X_test, y_test)
+
+mlpc = MLPClassifier((10,), alpha=0.00017670169402947945, max_iter=1000, random_state=42, solver='lbfgs')
+p = make_pipeline(ros, sc, mlpc)
+p.fit(X, y)
+for session, (X_test, y_test) in dat_test.items():
+    print_measures('Multi-layer perceptron', session, p, X_test, y_test)
+
+```
+
+```{r}
+# without p3
+dat <- read_csv('evaluation.csv')
+plt <- dat %>%
+  group_by(measure, classifier) %>%
+  summarise(mean=mean(value), se=sd(value) / sqrt(n())) %>%
+  ggplot(aes(classifier, mean, ymin=mean - se, ymax=mean + se)) +
+    geom_bar(stat='identity', fill='grey') +
+    geom_errorbar() +
+    facet_wrap(vars(str_c('Performance measure: ', measure)), nrow=3) +
+    coord_flip() +
+    geom_hline(yintercept=0.5, color='red') +
+    theme_bw() +
+    labs(y='value with standard error')
+ggsave('results/evaluation_avg.pdf', plt, width=12, height=8, units='cm')
+
+plt <- dat %>%
+  mutate(measure=if_else(measure == 'balanced accuracy', 'balanced\naccuracy', measure)) %>%
+  ggplot(aes(as.factor(session), value, colour=measure, group=interaction(classifier, measure))) +
+    geom_point() +
+    geom_line() +
+    theme_bw() +
+    facet_wrap(vars(classifier)) +
+    labs(x='session number', y='measure value', colour='performance\nmeasure') +
+    theme(legend.position = c(1, 0), legend.justification = c(1, .1)) +
+    ylim(0, 1)
+ggsave('results/evaluation_detail.pdf', plt, width=12, height=8, units='cm')
+
+```
+
+# Within-dyad classification
+
+```{python}
+dfs = [
+    pandas.read_csv('results/train.csv'),
+    pandas.read_csv('results/test.csv'),
+]
+
+# Try training within-dyad classifiers, classifying the final ~23 trials based
+# on training using the first ~67
+dat_all = {}
+for name, subdat in pandas.concat(dfs).groupby(['session', 'load_condition']):
+  split_pos = len(subdat) * 3 // 4
+  f = subdat[features].to_numpy()
+  acc = subdat['accuracy'].to_numpy()
+  dat_all[name] = (f[:split_pos], acc[:split_pos]), (f[split_pos:], acc[split_pos:])
+
+```
+
+```{python}
+from sklearn.decomposition import PCA
+
+skf = StratifiedKFold(n_splits=10, random_state=42, shuffle=True)
+
+pca = PCA()
+svm = SVC()
+p = make_pipeline(ros, sc, pca, svm)
+parameters = {'svc__C': loguniform(1e-2, 1e6), 'svc__gamma': loguniform(1e-5, 1e1), 'pca__n_components': range(1, 10)}
+cv = RandomizedSearchCV(p, param_distributions=parameters, cv=skf, return_train_score=True, n_iter=30, n_jobs=8, random_state=4, scoring='balanced_accuracy')
+
+(X_train, y_train), _ = dat_all[2, 'high']
+
+best = {}
+results = []
+for session, ((X_train, y_train), _) in dat_all.items():
+    result = cv.fit(X_train, y_train)
+    results.append(pandas.DataFrame({'session': [session for _ in range(30)], **result.cv_results_}))
+    best[session] = result.best_estimator_
+pandas.concat(results).to_csv('within.csv')
+```
+
+```{r}
+dat <- read_csv('within.csv')
+plt <- ggplot(dat, aes(param_pca__n_components, param_svc__C, size=param_svc__gamma, colour=mean_test_score, shape=rank_test_score == 1)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  scale_y_log10() +
+  facet_wrap(vars(session)) +
+  theme_bw() +
+  labs(x='number of PCA components', y='regularization constant (C)', size='gamma', colour='mean\nbalanced\naccuracy') +
+  guides(shape='none')
+ggsave('results/learning_curve_within_dyad.pdf', plt, width=36, height=24, units='cm')
+
+
+dat %>%
+  filter(rank_test_score == 1) %>%
+  ggplot(aes(param_pca__n_components, param_svc__C, size=param_svc__gamma, colour=mean_test_score)) +
+    geom_point() +
+    scale_y_log10() +
+    scale_colour_viridis_c()
+```
+
+# Final evaluation
+
+```{python}
+def print_measures(session, p, X_test, y_test):
+    with open('within-evaluation.csv', 'a') as f:
+        w = csv.writer(f)
+        if f.tell() == 0:
+            w.writerow(['session', 'load_condition', 'measure', 'value'])
+        y_pred = p.predict(X_test)
+        w.writerow([*session, 'balanced accuracy', balanced_accuracy_score(y_test, y_pred)])
+        w.writerow([*session, 'sensitivity', sensitivity_score(y_test, y_pred)])
+        w.writerow([*session, 'specificity', specificity_score(y_test, y_pred)])
+
+for session, ((X_train, y_train), (X_test, y_test)) in dat_all.items():
+    best[session].fit(X_train, y_train)
+    print_measures(session, best[session], X_test, y_test)
+
+```
+
+```{r}
+dat <- read_csv('within-evaluation.csv') %>%
+  mutate(measure=if_else(measure == 'balanced accuracy', 'balanced\naccuracy', measure))
+plt <- ggplot(dat, aes(as.factor(session), value, colour=measure, group=measure)) +
+  geom_point() +
+  geom_line() +
+  facet_wrap(vars(str_c('working memory load: ', load_condition)), nrow=2) +
+  theme_bw() +
+  labs(x='session') +
+  scale_x_discrete(guide=guide_axis(n.dodge=3))
+ggsave('results/within_dyad_detail.pdf', plt, width=12, height=8, units='cm')
+
+
+plt <- ggplot(dat, aes(measure, value)) +
+  geom_hline(yintercept=0.5, color='red') +
+  geom_boxplot() +
+  facet_wrap(vars(str_c('working memory load: ', load_condition))) +
+  theme_bw()
+ggsave('results/within_dyad_summary.pdf', plt, width=12, height=8, units='cm')
+
+dat %>%
+  group_by(measure) %>%
+  summarise(mean=mean(value), se=sd(value) / sqrt(n()))
+```

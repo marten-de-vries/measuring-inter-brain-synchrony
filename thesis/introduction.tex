@@ -1,0 +1,222 @@
+% !TEX root = thesis_draft.tex
+
+\section{General Introduction}
+%``If I have seen further it is by standing on the shoulders of
+%Giants.'' -- Isaac Newton\\
+%``The only thing that will redeem mandkind is co-operation.'' --
+%Bertrand Russell\\~\\
+
+What happens in the brain when we work together? It is a worthwhile question, as
+social coordination plays a central role in our everyday lives. A better
+understanding of it could help us compete and cooperate more efficiently, e.g.
+during negotiations, pair programming or construction projects. Social
+coordination is also key in more mundane joint actions. For example, carrying a
+heavy object together \parencite{sebanz_joint_2006}. If we can model what
+happens in the brain during social interaction mathematically, as proposed by
+\textcite{koike_hyperscanning_2015}, it could even help us build Human-Computer
+Interaction systems that better anticipate the user's needs \parencite{tan_enhancing_2010}.
+
+The classical way of researching social coordination is to study a single
+participant in a lab environment
+\parencite{hasson_brain--brain_2012,babiloni_social_2014}. A good example of
+this is the false belief task, in which the participant is told a story in which
+the environment changes without the knowledge of an observer
+\parencite[p.~458]{postle_essentials_2020}. Afterwards, the participant is asked
+about the observer's beliefs on the current state of the environment. It is
+commonly used to study theory of mind\footnote{See Appendix~\ref{app:tom} for
+more information on theory of mind.}, i.e. the ability to anticipate other
+people's behaviour \parencite[p.~457]{postle_essentials_2020}. Within this
+research approach, brain imaging is often used to find the cerebral regions that
+are involved in performing the task \parencite{babiloni_social_2014}.
+
+While this classical approach has been very succesful, it has its limits too.
+Humans are known to behave differently when not interacting with an actual
+person \parencite{babiloni_social_2014,rilling_neural_2004,rilling_neuroscience_2011}.
+The approach also cannot be used to study reactions that arise dynamically, i.e.
+spontaneously, as a result of information exchanged during the social
+interaction of interest \parencite{babiloni_social_2014, czeszumski_hyperscanning_2020}.
+
+\subsection{Hyperscanning}
+
+More recently, an alternate approach has become popular that solves these
+issues. \textcite{montague_hyperscanning_2002} named it `hyperscanning'. As of
+May 2022, there are over 3530 publications on hyperscanning\footnote{As
+determined by a Google Scholar search for the term `hyperscanning'.}. Most of
+those were written very recently: 2040 of them were published in 2018 or later.
+Hyperscanning is defined as recording brain imaging data for two (or more)
+participants simultaneously. These two participants are also called a dyad. This
+allows us to treat the dyad's brains as a single entity `coupled' through their
+respective perceptual and motor systems \parencite{hasson_brain--brain_2012}.
+
+Social interaction is studied with hyperscanning in a large variety of ways
+\parencite{czeszumski_hyperscanning_2020}. Often, studies are performed in the
+lab where conditions can be precisely controlled. Some of those only allow
+interaction through a computer interface, as in the prisoner's dilemma studies
+of \textcite{hu_inter-brain_2018,de_vico_fallani_defecting_2010}. Other studies
+strictly control the task but allow participants to see each other either
+through video links \parencite{dumas_inter-brain_2010,schippers_mapping_2010}
+or directly while interacting using gestures
+\parencite{yun_interpersonal_2012}. On the other hand, some studies record
+participants in a more naturalistic setting for the activities they perform,
+like in the classroom \parencite{dikker_brain--brain_2017} or the monastery
+\parencite{van_vugt_inter-brain_2020}. While having complete control allows for
+more precise conclusions, \textcite{konvalinka_two-brain_2012} argue that
+emergent patterns could arise in the brain as a result of social interaction,
+leading to a difference in experiments where participants are to some extent
+observers \parencite[is a good example; it is difficult to avoid in fMRI
+studies]{schippers_mapping_2010} compared to where they actively interact. The
+same can be said about being able to interact in person or through a computer
+\parencite{konvalinka_two-brain_2012}. \textcite{liu_clarifying_2014} categorize
+hyperscanning tasks along three dimensions: whether they require concurrent
+body movement or the participants interact only in a turn-based fashion, whether
+participants compete or cooperate and whether the participants can influence
+each other while the task is ongoing or not. If they can influence each other
+the task is called interdependent, otherwise it is independent.
+
+\subsection{Inter-brain synchrony}
+
+When analysing brain data acquired using hyperscanning, the most common strategy
+is to look for inter-brain synchrony
+\parencite[IBS;][]{ayrolles_hypyp_2021}. IBS occurs when there are functional
+similarities in the brain activity of individuals. IBS is often found in the
+brain data of such individuals when they socially interact
+\parencite{konvalinka_two-brain_2012}. While the hyperscanning approach is most
+often used to collect brain data, synchrony has also been found in other
+physiological signals including ``heart rate\footnote{See
+also \textcite{mccraty_new_2017}.}, pupil size, gaze position and saccade rate''
+\parencite{madsen_cognitive_2022}. \textcite{novembre_hyperscanning_2021} argue
+hyperscanning alone cannot tell us whether IBS is required for social
+interaction or if it just co-occurs with it, but extending the paradigm to
+include multi-brain stimulation could make that possible.
+
+What exactly causes IBS has not yet been firmly established
+\parencite{liu_interactive_2018}, but suggested causes include common cognitive
+processing \parencite{hamilton_hyperscanning_2021,madsen_cognitive_2022},
+shared observations \parencite{hamilton_hyperscanning_2021}, and more generally
+shared attention \parencite{dikker_brain--brain_2017,sebanz_joint_2006}. How
+these processes in turn result in synchronized oscillations is also still mostly
+unknown \parencite{liu_interactive_2018}, but this too is an area of active
+research \parencite{hamilton_hyperscanning_2021,koike_hyperscanning_2015}.
+
+We measure IBS using different functional connectivity measures, all of which
+calculate the similarity between the brain signals recorded for both (or more)
+participants in a specific way \parencite{czeszumski_hyperscanning_2020}. These
+measures were originally developed to study connectivity within a single system
+or brain \parencite{babiloni_social_2014}. A nice overview of them from that
+perspective is given by \textcite[section~5]{cohen_analyzing_2014}. As
+inter-brain data has different properties than intra-brain data, their
+interpretation when used to calculate IBS instead of intra-brain synchrony is
+different and complex \parencite{ayrolles_hypyp_2021}. For example, when
+interpreting intra-brain synchrony, you need to be careful to not interpret a
+single signal measured at multiple points due to volume conduction as synchrony
+\parencite{czeszumski_hyperscanning_2020}. That is not an issue when the signals
+are coming from different participants. On the other hand, while intra-brain
+synchrony is driven by the anatomical structure of the brain
+\parencite{ayrolles_hypyp_2021,dumas_anatomical_2012}, IBS can only occur
+through ``an indirect chain of events'' \parencite{babiloni_social_2014}, as (of
+course) no direct communication can occur between brains as opposed to brain
+regions \parencite{babiloni_social_2014}. IBS is driven by sensorimotor coupling
+instead, which is a less reliable mechanism \parencite{dumas_anatomical_2012}.
+
+Different measures focus on different kinds of similarities
+(i.e. different aspects of oscillations) in the brain signals. We will see
+examples of this in the simulation section. Because of that,
+\textcite{czeszumski_hyperscanning_2020} argues that it is misleading to refer
+to them all with the umbrella term `inter-brain synchrony'.
+
+It is important to keep in mind that many factors can influence IBS before
+interpreting its results. \textcite{cheng_synchronous_2015} found
+an effect of gender: more synchrony was found in male-male dyads than
+female-male dyads, which in turn had higher IBS than female-female ones.
+The relationship between the participants is also important.
+\textcite{dikker_crowdsourcing_2021} found a positive correlation between
+relationship duration and IBS, and \textcite{pan_cooperation_2017} found more
+IBS between lovers than friends or strangers. Less IBS has been found in
+individuals with    autism spectrum disorder
+\parencite[ASD;][]{salmi_brains_2013,valencia_what_2020}.
+
+Due to the properties of the signals of different brain imaging methods,
+they each have their own classes of IBS measures that are often used alongside
+them \parencite{babiloni_social_2014}. For example, when working with
+EEG hyperscanning data frequency domain-based measures are often used, while
+temporal correlations are more suited to functional magnetic resonance imaging
+(fMRI) data \parencite{babiloni_social_2014}. This is due to the lower temporal
+resolution of the latter \parencite{czeszumski_hyperscanning_2020}.
+
+IBS is often found in interacting
+partners in ``prefrontal and centro-parietal brain areas [...] across a wide
+range of frequencies, including delta, theta, alpha, beta and gamma''
+\parencite{konvalinka_two-brain_2012}. In \textit{prisoner's dilemma} studies,
+less synchrony is found in the alpha and theta bands when participants defect
+than when they cooperate \parencite{valencia_what_2020,hu_inter-brain_2018,de_vico_fallani_defecting_2010}.
+\citeauthor{de_vico_fallani_defecting_2010} additionally found the same effect
+in the beta and gamma bands, and were able to succesfully predict whether a user
+will defect in an iterated prisoner dilemma task based on IBS data.
+
+\subsubsection{Analysis methodologies}
+
+Little research has gone into which methodology to adopt when researching
+IBS. Simple connectivity measures like the phase locking value
+\parencite[PLV;][]{lachaux_measuring_1999} have been most popular
+\parencite{czeszumski_hyperscanning_2020,burgess_interpretation_2013}.
+The first systematical comparison of the performance of a number of
+measures in a hyperscanning context was done by
+\textcite{burgess_interpretation_2013}. \citeauthor{burgess_interpretation_2013}
+found that a number of measures, including PLV, suffered from detecting
+spurious connections in simulations. Instead,
+\citeauthor{burgess_interpretation_2013} recommends using the more robust
+circular correlation (CCorr) and Kraskov mutual information measures.
+
+\textcite{burgess_interpretation_2013} concludes that ``different people
+presented with the same conditions will produce similar EEG responses'',
+regardless of whether they were interacting. This can be somewhat mitigated by
+using measures like the imaginary part of coherency
+\parencite[ImagCoh;][]{nolte_identifying_2004,yoshinaga_comparison_2020},
+which will ignore signals that are in phase (or anti-phase) with each other
+\parencite[p.~346]{cohen_analyzing_2014}. An example of such a signal would be
+brain activity in the sensory cortex caused by a (strong) stimulus
+\parencite{dikker_crowdsourcing_2021}. The ImagCoh measure
+was originally developed to counteract volume conduction, but as this is not an
+issue with hyperscanning it is useless in that respect
+\parencite{ayrolles_hypyp_2021}.
+
+\textcite{ayrolles_hypyp_2021} recently made a push for standardization in IBS
+calculation by making a complete hyperscanning analysis pipeline available.
+\citeauthor{ayrolles_hypyp_2021} also advise to use amplitude based measures
+like power correlation when interested in neural states and phase-based measures
+when studying more fine-grained cognitive processes.
+
+\subsection{Research questions}
+
+The hard work of \textcite{burgess_interpretation_2013,ayrolles_hypyp_2021}
+notwithstanding, it is clear that only a little is known about the consequences
+of varying parts of an IBS analysis. The same is true for the
+interpretation of IBS measures in a hyperscanning context. Because of this gap
+in the literature, the aim of this graduation project is to investigate the
+sensitivity of IBS calculations in a social coordination task to different
+connectivity measures and other methodological choices.
+
+To clarify the interpretation of different IBS measures, we calculate and
+compare their values on (simple) artificial data. This allows us to see what
+kind of patterns in the data they respond to. Additionally, we develop a method
+that generates synthetic data for a given IBS value. This method can be used
+to perform power analyses for IBS experiments. We focus on the PLV, ImagCoh and
+CCorr measures.
+
+To investigate the sensitivity to methodological choices under realistic
+conditions, we perform a number of IBS analyses on a cooperative, turn-based and
+interdependent task. First, we analyse the effect of different time windows of
+interest and frequency analysis calculation methods on these values. Second, we
+analyse whether significant IBS is present in the emperical data using different
+permutation tests. Third, we inspect IBS values over time. Finally, we
+attempt to predict peformance in the task based on the IBS values. We
+vary the prediction scenarios and classification methods.
+
+As most of the variations we make should still lead to the same result, we
+hypothesize that the analysis is robust to such changes in methodology.
+Based on \textcite{burgess_interpretation_2013}'s previous work, we
+expect PLV to perhaps return more spurious results than the CCorr measure. Our
+expectations regarding the ImagCoh measure are more nuanced. It is both a phase-
+and amplitude based measure, allowing it to potentially pick up on effects that
+the other phase-based measures might miss. But it might also miss in-phase IBS
+detected by the other measures.

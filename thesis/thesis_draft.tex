@@ -1,0 +1,62 @@
+\documentclass[man,floatsintext,biblatex,a4paper]{apa7}
+%\usepackage[author={Marten de Vries},color=yellow,open=true]{pdfcomment}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{tabularx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{pdflscape}
+
+%- check discussion
+%- check layout
+%- check all
+%- fix LaTeX errors
+%- check references?
+
+\addbibresource{literature.bib}
+
+\title{Measuring Inter-Brain Synchrony: Methods and Pitfalls}
+\shorttitle{Measuring Inter-Brain Synchrony: Methods and Pitfalls}
+
+\leftheader{de Vries}
+\author{Marten de Vries\\~}
+\authorsaffiliations{Graduation Project\\
+Computational Cognitive Science\\
+University of Groningen\\~\\
+Supervisors: Dr. Marieke van Vugt \& Lionel Newman MSc}
+\date{December 2022}
+
+\abstract{
+Collecting EEG data for two participants simultaneously during a task (i.e.,
+hyperscanning) allows us to study their social interaction. Of particular
+interest is their inter-brain synchrony (IBS), i.e. how functionally similar
+their neural oscillations are. Using a full IBS analysis of a tacit coordination
+experiment and simulations, we study the effect of different methodological
+choices in an IBS measurement pipeline. Three ways to quantify IBS are studied:
+the phase-locking value (PLV), the circular correlation (CCorr) and the
+imaginary part of coherency (ImagCoh). Each measures functional similarity in
+its own way and has its advantages and disadvantages. We find the CCorr measure
+to be less stable than the others, but still recommend its use along with the
+PLV measure because of its natural interpretation and good performance
+on simulated data. We present a robust version of the circular correlation
+measure and make recommendations for how to best perform an IBS analysis.}
+
+\keywords{Hyperscanning, Inter-Brain Synchrony, methodology, simulation, Tacit
+Coordination, Theory of Mind, phase locking value, circular correlation,
+imaginary part of coherency}
+
+\begin{document}
+\maketitle
+\tableofcontents\newpage
+
+\input{introduction}
+\input{methods}
+\input{simulation}
+\input{freqanalysis}
+\input{permutationtest}
+\input{timecourse}
+\input{prediction}
+\input{discussion}
+\input{appendices}
+\printbibliography
+\end{document}

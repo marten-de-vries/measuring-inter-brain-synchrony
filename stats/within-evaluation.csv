@@ -1,0 +1,229 @@
+session,load_condition,measure,value
+2,high,balanced accuracy,0.375
+2,high,sensitivity,0.75
+2,high,specificity,0.0
+2,low,balanced accuracy,0.75
+2,low,sensitivity,1.0
+2,low,specificity,0.5
+3,high,balanced accuracy,0.5723684210526316
+3,high,sensitivity,0.8947368421052632
+3,high,specificity,0.25
+3,low,balanced accuracy,0.47435897435897434
+3,low,sensitivity,0.3333333333333333
+3,low,specificity,0.6153846153846154
+4,high,balanced accuracy,0.375
+4,high,sensitivity,0.5
+4,high,specificity,0.25
+4,low,balanced accuracy,0.5641025641025641
+4,low,sensitivity,0.46153846153846156
+4,low,specificity,0.6666666666666666
+5,high,balanced accuracy,0.5
+5,high,sensitivity,1.0
+5,high,specificity,0.0
+5,low,balanced accuracy,0.4305555555555556
+5,low,sensitivity,0.6111111111111112
+5,low,specificity,0.25
+6,high,balanced accuracy,0.5197368421052632
+6,high,sensitivity,0.7894736842105263
+6,high,specificity,0.25
+6,low,balanced accuracy,0.4647058823529412
+6,low,sensitivity,0.5294117647058824
+6,low,specificity,0.4
+7,high,balanced accuracy,0.5714285714285714
+7,high,sensitivity,1.0
+7,high,specificity,0.14285714285714285
+7,low,balanced accuracy,0.4230769230769231
+7,low,sensitivity,0.0
+7,low,specificity,0.8461538461538461
+8,high,balanced accuracy,0.43939393939393934
+8,high,sensitivity,0.3333333333333333
+8,high,specificity,0.5454545454545454
+8,low,balanced accuracy,0.42857142857142855
+8,low,sensitivity,0.8571428571428571
+8,low,specificity,0.0
+9,high,balanced accuracy,0.4
+9,high,sensitivity,0.8
+9,high,specificity,0.0
+9,low,balanced accuracy,0.5416666666666666
+9,low,sensitivity,0.75
+9,low,specificity,0.3333333333333333
+10,high,balanced accuracy,0.9545454545454546
+10,high,sensitivity,0.9545454545454546
+10,high,specificity,0.0
+10,low,balanced accuracy,0.49145299145299143
+10,low,sensitivity,0.4444444444444444
+10,low,specificity,0.5384615384615384
+11,high,balanced accuracy,0.4545454545454546
+11,high,sensitivity,0.8181818181818182
+11,high,specificity,0.09090909090909091
+11,low,balanced accuracy,0.2638888888888889
+11,low,sensitivity,0.08333333333333333
+11,low,specificity,0.4444444444444444
+12,high,balanced accuracy,0.6666666666666666
+12,high,sensitivity,0.3333333333333333
+12,high,specificity,1.0
+12,low,balanced accuracy,0.587719298245614
+12,low,sensitivity,0.8421052631578947
+12,low,specificity,0.3333333333333333
+13,high,balanced accuracy,0.3888888888888889
+13,high,sensitivity,0.7777777777777778
+13,high,specificity,0.0
+13,low,balanced accuracy,0.5416666666666666
+13,low,sensitivity,0.3333333333333333
+13,low,specificity,0.75
+14,high,balanced accuracy,0.6547619047619048
+14,high,sensitivity,0.8095238095238095
+14,high,specificity,0.5
+14,low,balanced accuracy,0.45
+14,low,sensitivity,0.9
+14,low,specificity,0.0
+15,high,balanced accuracy,0.7777777777777778
+15,high,sensitivity,0.5555555555555556
+15,high,specificity,1.0
+15,low,balanced accuracy,0.40909090909090906
+15,low,sensitivity,0.2727272727272727
+15,low,specificity,0.5454545454545454
+16,high,balanced accuracy,0.5416666666666667
+16,high,sensitivity,0.25
+16,high,specificity,0.8333333333333334
+16,low,balanced accuracy,0.5
+16,low,sensitivity,0.0
+16,low,specificity,1.0
+17,high,balanced accuracy,0.5073529411764706
+17,high,sensitivity,0.7647058823529411
+17,high,specificity,0.25
+17,low,balanced accuracy,0.5
+17,low,sensitivity,1.0
+17,low,specificity,0.0
+18,high,balanced accuracy,0.5
+18,high,sensitivity,0.0
+18,high,specificity,1.0
+18,low,balanced accuracy,0.6190476190476191
+18,low,sensitivity,0.6666666666666666
+18,low,specificity,0.5714285714285714
+19,high,balanced accuracy,0.4642857142857143
+19,high,sensitivity,0.9285714285714286
+19,high,specificity,0.0
+19,low,balanced accuracy,0.5238095238095238
+19,low,sensitivity,0.21428571428571427
+19,low,specificity,0.8333333333333334
+20,high,balanced accuracy,0.3142857142857143
+20,high,sensitivity,0.2
+20,high,specificity,0.42857142857142855
+20,low,balanced accuracy,0.45614035087719296
+20,low,sensitivity,0.5789473684210527
+20,low,specificity,0.3333333333333333
+21,high,balanced accuracy,0.4318181818181818
+21,high,sensitivity,0.8636363636363636
+21,high,specificity,0.0
+21,low,balanced accuracy,0.275
+21,low,sensitivity,0.55
+21,low,specificity,0.0
+22,high,balanced accuracy,0.5505050505050505
+22,high,sensitivity,0.5454545454545454
+22,high,specificity,0.5555555555555556
+22,low,balanced accuracy,0.5151515151515151
+22,low,sensitivity,0.36363636363636365
+22,low,specificity,0.6666666666666666
+23,high,balanced accuracy,0.4
+23,high,sensitivity,0.8
+23,high,specificity,0.0
+23,low,balanced accuracy,0.4777777777777778
+23,low,sensitivity,0.5555555555555556
+23,low,specificity,0.4
+24,high,balanced accuracy,0.5222222222222221
+24,high,sensitivity,0.4444444444444444
+24,high,specificity,0.6
+24,low,balanced accuracy,0.5921052631578947
+24,low,sensitivity,0.6842105263157895
+24,low,specificity,0.5
+25,high,balanced accuracy,0.5
+25,high,sensitivity,1.0
+25,high,specificity,0.0
+25,low,balanced accuracy,0.5
+25,low,sensitivity,1.0
+25,low,specificity,0.0
+27,high,balanced accuracy,0.5
+27,high,sensitivity,1.0
+27,high,specificity,0.0
+27,low,balanced accuracy,0.41666666666666663
+27,low,sensitivity,0.3333333333333333
+27,low,specificity,0.5
+28,high,balanced accuracy,0.48333333333333334
+28,high,sensitivity,0.16666666666666666
+28,high,specificity,0.8
+28,low,balanced accuracy,0.36666666666666664
+28,low,sensitivity,0.7333333333333333
+28,low,specificity,0.0
+29,high,balanced accuracy,0.49145299145299143
+29,high,sensitivity,0.5384615384615384
+29,high,specificity,0.4444444444444444
+29,low,balanced accuracy,0.4901960784313726
+29,low,sensitivity,0.6470588235294118
+29,low,specificity,0.3333333333333333
+30,high,balanced accuracy,0.4583333333333333
+30,high,sensitivity,0.0
+30,high,specificity,0.9166666666666666
+30,low,balanced accuracy,0.5125
+30,low,sensitivity,0.625
+30,low,specificity,0.4
+31,high,balanced accuracy,0.7960526315789473
+31,high,sensitivity,0.8421052631578947
+31,high,specificity,0.75
+31,low,balanced accuracy,0.38076923076923075
+31,low,sensitivity,0.3
+31,low,specificity,0.46153846153846156
+33,high,balanced accuracy,0.5396825396825397
+33,high,sensitivity,0.2222222222222222
+33,high,specificity,0.8571428571428571
+33,low,balanced accuracy,0.5197368421052632
+33,low,sensitivity,0.7894736842105263
+33,low,specificity,0.25
+35,high,balanced accuracy,0.425
+35,high,sensitivity,0.85
+35,high,specificity,0.0
+35,low,balanced accuracy,0.725
+35,low,sensitivity,0.45
+35,low,specificity,1.0
+36,high,balanced accuracy,0.42857142857142855
+36,high,sensitivity,0.42857142857142855
+36,high,specificity,0.42857142857142855
+36,low,balanced accuracy,0.38636363636363635
+36,low,sensitivity,0.7727272727272727
+36,low,specificity,0.0
+37,high,balanced accuracy,0.4818181818181818
+37,high,sensitivity,0.6
+37,high,specificity,0.36363636363636365
+37,low,balanced accuracy,0.4330357142857143
+37,low,sensitivity,0.4375
+37,low,specificity,0.42857142857142855
+38,high,balanced accuracy,0.5723684210526316
+38,high,sensitivity,0.8947368421052632
+38,high,specificity,0.25
+38,low,balanced accuracy,0.7745098039215685
+38,low,sensitivity,0.8823529411764706
+38,low,specificity,0.6666666666666666
+39,high,balanced accuracy,0.30952380952380953
+39,high,sensitivity,0.6190476190476191
+39,high,specificity,0.0
+39,low,balanced accuracy,0.4090909090909091
+39,low,sensitivity,0.8181818181818182
+39,low,specificity,0.0
+40,high,balanced accuracy,0.5454545454545454
+40,high,sensitivity,0.7272727272727273
+40,high,specificity,0.36363636363636365
+40,low,balanced accuracy,0.5
+40,low,sensitivity,1.0
+40,low,specificity,0.0
+41,high,balanced accuracy,0.3472222222222222
+41,high,sensitivity,0.4444444444444444
+41,high,specificity,0.25
+41,low,balanced accuracy,0.4523809523809524
+41,low,sensitivity,0.9047619047619048
+41,low,specificity,0.0
+42,high,balanced accuracy,0.4809523809523809
+42,high,sensitivity,0.5333333333333333
+42,high,specificity,0.42857142857142855
+42,low,balanced accuracy,0.4642857142857143
+42,low,sensitivity,0.42857142857142855
+42,low,specificity,0.5

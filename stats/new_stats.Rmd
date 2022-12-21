@@ -1,0 +1,1307 @@
+# Setup
+
+```{r}
+library(tidyverse)
+library(gganimate)
+library(ggpubr)
+library(pals)  # cyclic colour maps
+library(eegUtils)
+library(lme4)
+library(faux)  # simulate data with correlations
+library(ggh4x)
+
+band = 'alpha';
+
+lookup <- tribble(
+  ~channel, ~electrode,
+  "*A1",  "Fp1",
+  "*A2",  "AF3",
+  "*A3",  "F7",
+  "*A4",  "F3",
+  "*A5",  "FC1",
+  "*A6",  "FC5",
+  "*A7",  "T7",
+  "*A8",  "C3",
+  "*A9",  "CP1",
+  "*A10", "CP5",
+  "*A11", "P7",
+  "*A12", "P3",
+  "*A13", "Pz",
+  "*A14", "PO3",
+  "*A15", "O1",
+  "*A16", "Oz",
+  "*A17", "O2",
+  "*A18", "PO4",
+  "*A19", "P4",
+  "*A20", "P8",
+  "*A21", "CP6",
+  "*A22", "CP2",
+  "*A23", "C4",
+  "*A24", "T8",
+  "*A25", "FC6",
+  "*A26", "FC2",
+  "*A27", "F4",
+  "*A28", "F8",
+  "*A29", "AF4",
+  "*A30", "Fp2",
+  "*A31", "Fz",
+  "*A32", "Cz",
+)
+
+read_dat <- function (filename) {
+  dat <- read_table(filename, col_names=c('trial', 'condition', 'accuracy', 'measure', 'channel', 'value', 'session', 'sample'), col_types=cols(
+    trial = col_integer(),
+    condition = col_integer(),
+    accuracy = col_logical(),
+    measure = col_factor(levels=c('plv', 'ccorr', 'imagcoh', 'p3subj1', 'p3subj2', 'robccorr')),
+    channel = col_character(),
+    value = col_double(),
+    session = col_integer(),
+    sample = col_character()
+  ), na=c('NaN')) %>%
+      mutate(stim_type=if_else(condition %in% c(101, 103), 'color',
+                       if_else(condition %in% c(102, 104), 'shape',
+                               NA_character_)),
+             load_condition=if_else(condition %in% c(101, 102), 'low',
+                            if_else(condition %in% c(103, 104), 'high',
+                                    NA_character_))) %>%
+      inner_join(lookup) %>%
+      select(-condition, -channel)
+  # manually fix a single missing value (OpenSesame also recorded it)
+  dat[dat$session == 14 & dat$trial == 135, 'accuracy'] <- TRUE;
+  dat
+}
+
+plot_two_phases <- function (df, alpha) {
+  bind_rows(
+    df,  # middle
+
+    df %>% mutate(phi=phi + 2 * pi),  # right
+    df %>% mutate(phi=phi - 2 * pi),  # left
+    df %>% mutate(psi=psi + 2 * pi),  # bottom
+    df %>% mutate(psi=psi - 2 * pi),  # top
+
+    df %>% mutate(phi=phi + 2 * pi, psi=psi + 2 * pi),  # right bottom
+    df %>% mutate(phi=phi + 2 * pi, psi=psi - 2 * pi),  # right top
+    df %>% mutate(phi=phi - 2 * pi, psi=psi + 2 * pi),  # left bottom
+    df %>% mutate(phi=phi - 2 * pi, psi=psi - 2 * pi)   # left top
+  ) %>%
+    ggplot(aes(phi, psi)) +
+      geom_point(shape=16, alpha=alpha) +
+      annotate('rect', xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=-pi, fill='red', alpha=0.3) +
+      annotate('rect', xmin=-Inf, xmax=Inf, ymin=pi, ymax=Inf, fill='red', alpha=0.3) +
+      annotate('rect', xmin=-Inf, xmax=-pi, ymin=-pi, ymax=pi, fill='red', alpha=0.3) +
+      annotate('rect', xmin=pi, xmax=Inf, ymin=-pi, ymax=pi, fill='red', alpha=0.3) +
+      scale_x_continuous(breaks=c(-pi, 0, pi), labels=c('-pi', '0', 'pi')) +
+      scale_y_continuous(breaks=c(-pi, 0, pi), labels=c('-pi', '0', 'pi')) +
+      coord_fixed(xlim=c(-1.5 * pi, 1.5 * pi), ylim=c(-1.5 * pi, 1.5 * pi)) +
+      labs(x='signal 1 phase', y='signal 2 phase') +
+      theme_bw()
+}
+```
+
+# Plot frequency data
+
+```{r}
+read_matrix <- function(filename) {
+  read.csv(filename, header=F) %>%
+    setNames(1:100) %>%
+    mutate(freq=9:14) %>%
+    pivot_longer(1:100, names_to='time', values_to='value') %>%
+    mutate(time=as.numeric(time))
+}
+
+read_example <- function(basename) {
+  amplitude <- read_matrix(str_c(basename, '-amplitude.csv'))
+  amplitude$type <- 'amplitude'
+  phase <- read_matrix(str_c(basename, '-phase.csv'))
+  phase$type <- 'phase'
+  bind_rows(amplitude, phase)
+}
+
+raw <- data.frame(value=read.csv('results/sess2-subj1-alpha-trial1-raw.csv', header=F)$V1)
+default <- read_example('results/sess2-subj1-alpha-trial1')
+
+r <- ggplot(raw, aes(seq_along(value), value)) +
+  geom_line() +
+  theme_bw() +
+  ylab('voltage (mV)') +
+  rremove('x.text') +
+  rremove('xlab')
+
+ampl <- ggplot(filter(default, type == 'amplitude'), aes(time, freq, fill=value)) +
+  geom_raster(hjust=0) +
+#  scale_fill_gradientn(colors=jet(100)) +
+  scale_fill_viridis_c() +
+  theme_bw() +
+  ylab('frequency') +
+  rremove('x.text') +
+  rremove('xlab')
+ampl.legend <- get_legend(ampl)
+
+pha <- ggplot(filter(default, type == 'phase'), aes(time, freq, fill=value)) +
+  geom_raster(hjust=0) +
+#  scale_fill_gradientn(colors=jet(100)) +
+  scale_fill_gradientn(colors=kovesi.cyclic_mrybm_35_75_c68_s25(100)) +
+  ylab('frequency') +
+  theme_bw()
+pha.legend <- get_legend(pha)
+
+plt <- ggarrange(r, text_grob(''), ampl  + guides(fill='none'), ampl.legend, pha + guides(fill='none'), pha.legend, ncol=2, nrow=3, labels=c('A', '', 'B', '', 'C'), heights=c(0.8, 0.8, 1), widths=c(1, 0.15))
+ggsave('results/freqdomain.pdf', plt, width=12, height=12, units='cm')
+
+
+mexhat <- ggplot() +
+  xlim(-5, 5) +
+  labs(x='t', y='y') +
+  geom_function(fun=function (t) { 2/(sqrt(3)*pi^.25) * (1 - t^2) * exp(-t^2/2) })
+
+cwtdat <- read.table('results/sess2-subj1-alpha-trial1-cwt.csv', col.names=c('scale', 'time', 'cwt'))
+
+cwtdat %>% filter(cwt == max(cwt))
+cwt <- ggplot(cwtdat, aes(time, scale, z=cwt)) +
+  geom_contour_filled() +
+  annotate('text', x=0.5019531, y=0.3158913 + 0.05, label=237) +
+  labs(x='time (s)', y='scale (s)', fill='W-value') +
+  scale_fill_viridis_d(guide=guide_colorsteps(barwidth=cm(6))) +
+  theme_bw() +
+  theme(legend.position='bottom')
+
+plt <- ggarrange(mexhat, r, cwt, nrow=3, labels=c('A', 'B', 'C'), heights=c(0.7, 0.9, 1.4))
+ggsave('results/cwt.pdf', plt, width=12, height=12, units='cm')
+
+default$shuffled <- 'original'
+timeshuffled <- read_example('results/sess2-subj1-alpha-trial1-timeshuffled')
+timeshuffled$shuffled <- 'time\nshuffled'
+spectrumshuffled <- read_example('results/sess2-subj1-alpha-trial1-spectrumshuffled')
+spectrumshuffled$shuffled <- 'spectrum\nshuffled'
+
+ampl <- bind_rows(default, timeshuffled, spectrumshuffled) %>%
+  filter(type == 'amplitude') %>%
+  ggplot(aes(time, freq, fill=value)) +
+    geom_raster(hjust=0) +
+    scale_fill_viridis_c() +
+    theme_bw() +
+    ylab('frequency') +
+    facet_grid(vars(shuffled)) +
+    rremove('x.text') +
+    rremove('xlab')
+
+pha <- bind_rows(default, timeshuffled, spectrumshuffled) %>%
+  filter(type == 'phase') %>%
+  ggplot(aes(time, freq, fill=value)) +
+    geom_raster(hjust=0) +
+    scale_fill_gradientn(colors=kovesi.cyclic_mrybm_35_75_c68_s25(100)) +
+    theme_bw() +
+    ylab('frequency') +
+    facet_grid(vars(shuffled))
+
+plt <- ggarrange(ampl, pha, nrow=2, labels=c('A', 'B')) 
+ggsave('results/shufflecompare.pdf', plt, width=12, height=12, units='cm')
+
+
+# plot phase data of two participants against each other
+df <- read_csv('results/sess2-alpha-trial1-phases.csv', col_names=c('phi', 'psi')) %>%
+  mutate(time=row_number())
+
+round(ccorr(df$phi, df$psi), 3)
+round(plv(df$phi, df$psi), 3)
+round(imagcoh(df$phi, df$psi), 3)
+
+plt.as.seen.by.measure <- plot_two_phases(df, alpha=0.65)
+
+df2 <- df %>%
+  rename(one=phi, two=psi) %>%
+  pivot_longer(c(one, two))
+
+plt.with.time <- bind_rows(
+    df2,
+    df2 %>% mutate(value=value + 2 * pi),
+    df2 %>% mutate(value=value - 2 * pi)
+  ) %>%
+  ggplot(aes(time, value, color=name)) +
+    geom_point() +
+    annotate('rect', xmin=-Inf, xmax=Inf, ymin=-Inf, ymax=-pi, fill='red', alpha=0.3) +
+    annotate('rect', xmin=-Inf, xmax=Inf, ymin=pi, ymax=Inf, fill='red', alpha=0.3) +
+    labs(y='phase', color='signal') +
+    scale_y_continuous(breaks=c(-pi, 0, pi), labels=c('-pi', '0', 'pi')) +
+    coord_cartesian(ylim=c(-pi, pi) * 1.5) +
+    theme_bw()
+
+plt <- ggarrange(plt.with.time, plt.as.seen.by.measure, labels=c('A', 'B'), legend='bottom')
+
+ggsave('results/phases-visualization.pdf', plt, width=12, height=8, units='cm')
+```
+
+```{r}
+# for presentation
+plt <- lookup %>%
+  select(electrode) %>%
+  electrode_locations() %>%
+  ggplot(aes(x, y, label=electrode)) +
+    geom_head(interp_limit='head') +
+    geom_ears() +
+    geom_text() +
+    theme_void()
+ggsave('results/scalp.pdf', plt, width=8, height=8, units='cm')
+```
+
+# Compare alpha for different window sizes
+
+TODO: topo plots with p-values that take window size as a factor? If so, make sure to calculate for all the measures...
+
+```{r}
+actual <- read_dat(str_c('results/synch_', band, '.prototype.dat'))
+
+if (band == 'alpha') {
+  fake <- read_dat(str_c('results/extra/synch_', band, '.prototype_window_size_-0.5_to_1.dat')) %>%
+    mutate(winsize = '1.5s')
+  # fake <- read_dat(str_c('results/old/synch_', band, '.prototype.fake.dat'))  # old, basically shows the same.
+
+  cmp <- bind_rows(actual %>% mutate(winsize='1s'), fake)# %>%
+#    filter(measure == 'imagcoh')
+
+  # construct best LME model
+  m1 <- lmer(value~winsize*stim_type*trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m2 <- lmer(value~(winsize+stim_type+trial)^2 + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m1, m2) # <- Use m2
+  m3a <- lmer(value~winsize + stim_type + trial + winsize:stim_type + winsize:trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m3b <- lmer(value~winsize + stim_type + trial + winsize:stim_type + stim_type:trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m3c <- lmer(value~winsize + stim_type + trial + winsize:trial + stim_type:trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m2, m3a)
+  anova(m2, m3b)
+  anova(m2, m3c)
+  # all don't significantly add to the model. Use m3a.
+  m4a <- lmer(value~winsize + stim_type + trial + winsize:stim_type + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m4b <- lmer(value~winsize + stim_type + trial + winsize:trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m3a, m4a)
+  anova(m3a, m4b)
+  # all don't significantly add to the model. Use m4b.
+  m5a <- lmer(value~winsize + stim_type + trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m5b <- lmer(value~winsize + trial + winsize:trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m4b, m5a)
+  anova(m4b, m5b)
+  # all don't significantly add to the model. Use m5a
+  m6a <- lmer(value~stim_type + trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m6b <- lmer(value~winsize + trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m6c <- lmer(value~winsize + stim_type + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m5a, m6a) # winsize significantly contributes (at this point)
+  anova(m5a, m6b) # stim_type does not significantly contribute (at this point)
+  anova(m5a, m6c) # time significantly contributes (at this point)
+  # Keep m6b
+  m7a <- lmer(value~winsize + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  m7b <- lmer(value~trial + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m6b, m7a)
+  anova(m6b, m7b)
+  # both remaining fixed effects significantly contribute, so keep m6b.
+  
+  # try load_condition, it's also n.s.
+  m8 <- lmer(value~winsize + trial + load_condition + (1 | session) + (1 | electrode), data=cmp, REML=FALSE)
+  anova(m6b, m8)
+
+
+  diff(AIC(m7b, m6b)$AIC)
+  diff(BIC(m7b, m6b)$BIC)
+  # visualize
+  # plt <- cmp %>%
+  #   group_by(winsize, electrode, stim_type, session) %>%
+  #   summarise(value=mean(value)) %>%
+  #   ggplot(aes(winsize, value, color=stim_type, group=winsize)) +
+  #     geom_violin() +
+  #     geom_jitter(width=0.25, alpha=0.5, size=0.01) +
+  #     facet_wrap(vars(electrode)) +
+  #     expand_limits(y=0) +
+  #     labs(y='mean PLV_t over trials', x='frequency analysis window size', color='stimulus type') +
+  #     theme_bw() +
+  #     theme(legend.position='bottom')
+  plt <- cmp %>%
+    group_by(measure, winsize, electrode, load_condition, session) %>%
+    summarise(value=mean(value)) %>%
+    group_by(measure, winsize, load_condition, session) %>%
+    summarise(value=mean(value)) %>%
+    ggplot(aes(winsize, value, color=load_condition, group=winsize)) +
+      geom_violin() +
+      geom_jitter(width=0.25, size=0.25) +
+      expand_limits(y=0) +
+      labs(y='mean IBS value per block', x='frequency analysis window size', color='working memory load') +
+      theme_bw() +
+      theme(legend.position='bottom') +
+      facet_wrap(vars(measure), scales='free_y')
+  
+    ggsave('results/winsize.pdf', plt, width=12, height=8, units='cm')
+}
+```
+# Compare alpha for different frequency analysis methods
+
+```{r}
+if (band == 'alpha') {
+  # TODO: multitapers vs. hann taper
+  fake <- read_dat(str_c('results/extra/synch_', band, '.prototype_multitapers.dat')) %>%
+    mutate(taper='multi')
+  cmp <- bind_rows(actual %>% mutate(taper = 'hann'), fake)
+
+  subdat <- cmp %>% filter(measure == 'plv')
+  m1 <- lmer(value ~ trial + taper + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2a <- lmer(value ~ trial + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2b <- lmer(value ~ taper + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m2a)
+  anova(m1, m2b)
+  # keep m1
+  m3a <- lmer(value ~ trial + taper + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m3b <- lmer(value ~ trial + taper + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m3a)
+  anova(m1, m3b)
+  # keep m1 = final model
+  anova(m1, m2a)
+  diff(AIC(m1, m2a)$AIC)
+  diff(BIC(m1, m2a)$BIC)
+
+  subdat <- cmp %>% filter(measure == 'ccorr')
+  rm1 <- lmer(value ~ (1 | session) + (1 | electrode), data=subdat)
+  rm2 <- lmer(value ~ (1 | session), data=subdat)
+  rm3 <- lmer(value ~ (1 | electrode), data=subdat)
+  anova(rm1, rm2, refit=F)
+  anova(rm1, rm3, refit=F)
+  # conclusion: drop electrode
+  m1 <- lmer(value ~ trial + taper + (1 | session), data=subdat, REML=FALSE)
+  m2a <- lmer(value ~ trial + (1 | session), data=subdat, REML=FALSE)
+  m2b <- lmer(value ~ taper + (1 | session), data=subdat, REML=FALSE)
+  anova(m1, m2a)
+  anova(m1, m2b)
+  # keep m2b
+  m3 <- lmer(value ~ 1 + (1 | session), data=subdat, REML=FALSE)
+  anova(m2b, m3)
+  # keep m2b
+  m3a <- lmer(value ~ taper + load_condition + (1 | session), data=subdat, REML=FALSE)
+  m3b <- lmer(value ~ taper + stim_type + (1 | session), data=subdat, REML=FALSE)
+  anova(m2b, m3a)
+  anova(m2b, m3b)
+  # keep m3a, now check taper again...
+  m4 <- lmer(value ~ load_condition + (1 | session), data=subdat, REML=FALSE)
+  anova(m3a, m4)
+  # final model: m3a.
+  diff(AIC(m3a, m4)$AIC)
+  diff(BIC(m3a, m4)$BIC)
+    
+  subdat <- cmp %>% filter(measure == 'imagcoh')
+  m1 <- lmer(value ~ trial + taper + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2a <- lmer(value ~ trial + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2b <- lmer(value ~ taper + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m2a)
+  anova(m1, m2b)
+  # no significant effect of taper. Try also w/ load_condition/stim_type?
+  m3a <- lmer(value ~ trial + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m3b <- lmer(value ~ trial + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m2a, m3b)
+  # final model: m2a
+  anova(m2a, m1)
+  diff(AIC(m2a, m1)$AIC)
+  diff(BIC(m2a, m1)$BIC)
+
+  plt <- cmp %>%
+    group_by(measure, taper, electrode, load_condition, session) %>%
+    summarise(value=mean(value)) %>%
+    group_by(measure, taper, load_condition, session) %>%
+    summarise(value=mean(value)) %>%
+    ggplot(aes(taper, value, color=load_condition, group=taper)) +
+      geom_violin() +
+      geom_jitter(width=0.25, size=0.25) +
+      expand_limits(y=0) +
+      labs(y='mean IBS value per block', x='frequency analysis taper', color='working memory load') +
+      theme_bw() +
+      theme(legend.position='bottom') +
+      facet_wrap(vars(measure), scales='free_y')
+  ggsave('results/freqmethod.pdf', plt, width=12, height=8, units='cm')
+
+  correlations <- cmp %>%
+    pivot_wider(names_from=taper, values_from=value) %>%
+    group_by(measure, session, electrode) %>%
+    summarise(cor=cor(hann, multi))
+
+  means <- correlations %>%
+    group_by(measure, session) %>%
+    summarise(z=mean(atanh(cor))) %>%
+    group_by(measure) %>%
+    summarise(mean=as.character(round(tanh(mean(z)), 2)))
+
+  plt <- correlations %>%
+    group_by(measure, electrode) %>%
+    # fisher transform
+    summarise(cor=tanh(mean(atanh(cor)))) %>%
+    inner_join(means, by='measure') %>%
+    electrode_locations() %>%
+    ggplot(aes(x, y, fill=cor, z=cor)) +
+      geom_topo(interp_limit='head', interpolate=TRUE, color='black', chan_size=1, grid_res=200) +
+      scale_fill_viridis_c(oob=scales::squish, limit=c(0, 1)) +
+      coord_fixed() +
+      theme_void() +
+      facet_wrap(vars(str_c(measure, ' (mean: ', mean, ')'))) +
+      labs(fill='correlation')
+  ggsave('results/freqmethodcorr.pdf', plt, width=12, height=4.5, units='cm')
+
+    # nest() %>%
+    # mutate(correlationmatrix=map(data, ~cor_longer(.x[,c('hann', 'multi')]))) %>%
+    # select(-data) %>%
+    # unnest(correlationmatrix) %>%
+    # group_by(measure, session, name, rowname) %>%
+    # summarise(value=mean(value)) %>%
+    # group_by(measure, name, rowname) %>%
+    # summarise(value=mean(value))
+
+  # Put in the appendix sometime? Maybe...
+  cmp %>%
+    filter(measure == 'ccorr') %>%
+    pivot_wider(names_from=taper, values_from=value) %>%
+    ggplot(aes(hann, multi, colour=electrode)) +
+      geom_point(alpha=0.5, size=0.05) +
+      facet_wrap(vars(session))
+}
+```
+
+# Compare alpha for different frequency analysis resolutions
+
+```{r}
+if (band == 'alpha') {
+  # different resolutions
+  fake <- read_dat(str_c('results/extra/synch_', band, '.prototype_full_res_512.dat')) %>%
+    mutate(resolution = 'full (~2 ms)', delta=1000/512)
+  fake2 <- read_dat(str_c('results/extra/synch_', band, '.prototype_half_resolution_50_timepoints.dat')) %>%
+    mutate(resolution = 'half (20 ms)', delta=20)
+
+  actual <- read_dat('results/extra/robust.dat')
+  fake2 <- read_dat('results/extra/robust_half_resolution_50_timepoints.dat') %>%
+    mutate(resolution = 'half (20 ms)', delta=20)
+  fake3 <- read_dat('results/extra/robust_half_resolution_downsampling.dat') %>%
+    mutate(resolution = 'half (20 ms downsampled)', delta=20)
+  fake4 <- read_dat('results/extra/robust_half_resolution_downsampling_mean.dat') %>%
+    mutate(resolution = 'half (20 ms downsampled mean)', delta=20)
+  cmp <- bind_rows(actual %>% mutate(resolution = 'default (10 ms)', delta=10), fake, fake2, fake3, fake4)
+
+  subdat <- cmp %>% filter(measure == 'plv')
+  m1 <- lmer(value ~ trial + delta + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2 <- lmer(value ~ trial + delta + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m3 <- lmer(value ~ trial + delta + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m2)
+  anova(m1, m3)
+  # use m2
+  m4 <- lmer(value ~ delta + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m5 <- lmer(value ~ trial + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m2, m4)
+  anova(m2, m5)
+  # conclusion: use m5 as a base.
+  m6 <- lmer(value ~ trial + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m7 <- lmer(value ~ load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m5, m6)
+  anova(m5, m7)
+  # keep m5.
+  anova(m5, m2)
+  diff(AIC(m5, m2)$AIC)
+  diff(BIC(m5, m2)$BIC)
+
+  subdat <- cmp %>% filter(measure == 'ccorr')
+  m1 <- lmer(value ~ trial + delta + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2 <- lmer(value ~ trial + delta + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m3 <- lmer(value ~ trial + delta + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m2)
+  anova(m1, m3)
+  # use m2
+  m4 <- lmer(value ~ delta + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m5 <- lmer(value ~ trial + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m2, m4)
+  anova(m2, m5)
+  # keep m2
+  anova(m4, m2)
+  diff(AIC(m4, m2)$AIC)
+  diff(BIC(m4, m2)$BIC)
+
+  subdat <- cmp %>% filter(measure == 'imagcoh')
+  m1 <- lmer(value ~ trial + delta + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m2 <- lmer(value ~ trial + delta + load_condition + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m3 <- lmer(value ~ trial + delta + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m1, m2)
+  anova(m1, m3)
+  # use m3
+  m4 <- lmer(value ~ delta + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m5 <- lmer(value ~ trial + stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m3, m4)
+  anova(m3, m5)
+  # conclusion: use m5 as a base.
+  m6 <- lmer(value ~ trial + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  m7 <- lmer(value ~ stim_type + (1 | session) + (1 | electrode), data=subdat, REML=FALSE)
+  anova(m5, m6)
+  anova(m5, m7)
+  # keep m5.
+  anova(m5, m3)
+  diff(AIC(m5, m3)$AIC)
+  diff(BIC(m5, m3)$BIC)
+
+  plt <- cmp %>%
+    group_by(measure, resolution, electrode, load_condition, session) %>%
+    summarise(value=mean(value)) %>%
+    group_by(measure, resolution, load_condition, session) %>%
+    summarise(value=mean(value)) %>% #  %>% filter(measure=='robccorr') %>% group_by(resolution) %>% summarise(mean(value))
+    ggplot(aes(resolution, value, color=load_condition, group=resolution)) +
+      geom_point()
+      geom_violin() +
+      geom_jitter(width=0.25, size=0.25) +
+      expand_limits(y=0) +
+      labs(y='mean IBS value per block', x='frequency analysis resolution', color='working memory load') +
+      scale_x_discrete(limits=c('full (~2 ms)', 'default (10 ms)', 'half (20 ms)', 'half (20 ms downsampled)', 'half (20 ms downsampled mean)')) +
+      theme_bw() +
+      theme(legend.position='bottom',
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+      facet_wrap(vars(measure), scales='free_y')
+  ggsave('results/resolution.pdf', plt, width=12, height=8, units='cm')
+  
+  cor_longer <- function(data) {
+    y <- cor(data)
+    y[upper.tri(y)] <- NA
+    y %>%
+      as.data.frame() %>%
+      rownames_to_column() %>%
+      pivot_longer(-rowname) %>%
+      drop_na() %>%
+      as.data.frame()
+  }
+
+  correlationmatrix <- cmp %>%
+    select(-delta) %>%
+    pivot_wider(names_from=resolution, values_from=value) %>%
+    group_by(measure, session, electrode) %>%
+    nest() %>%
+    mutate(correlationmatrix=map(data, ~cor_longer(.x[,c('full (~2 ms)', 'default (10 ms)', 'half (20 ms)')]))) %>%
+    select(-data) %>%
+    unnest(correlationmatrix) %>%
+    group_by(measure, session, name, rowname) %>%
+    summarise(value=mean(atanh(value))) %>%
+    group_by(measure, name, rowname) %>%
+    summarise(value=tanh(mean(value)))
+
+  # measure value correlations averaged over electrodes and sessions
+  plt <- ggplot(correlationmatrix, aes(rowname, name, label=round(value, 2), fill=value)) +
+    geom_tile() +
+    geom_text() +
+    scale_x_discrete(limits=c('full (~2 ms)', 'default (10 ms)', 'half (20 ms)')) +
+    scale_y_discrete(limits=c('half (20 ms)', 'default (10 ms)', 'full (~2 ms)')) +
+    scale_fill_viridis_c(limits=c(-1, 1)) +
+    facet_wrap(vars(measure), nrow=2) +
+    theme_bw() +
+    theme(legend.position=c(1, 0),
+          legend.justification=c(1, 1.2),
+          legend.direction='horizontal',
+          legend.key.width=unit(.8, 'cm'),
+          axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+    rremove('xlab') +
+    rremove('ylab') +
+    labs(fill='')
+  ggsave('results/resolutioncorr.pdf', plt, width=12, height=8, units='cm')
+
+  plt <- cmp %>%
+    filter(measure == 'ccorr') %>%
+    select(-delta) %>%
+    pivot_wider(names_from=resolution, values_from=value) %>%
+    ggplot(aes(`default (10 ms)`, `half (20 ms)`, colour=electrode)) +
+      geom_point(alpha=0.5, size=0.05) +
+      facet_wrap(vars(session)) +
+      theme_bw() +
+      labs(x='circular correlation (10ms resolution)', y='circular correlation (20 ms resolution)') +
+      theme(legend.position='none',
+            axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave('results/resolutionapp.pdf', plt, width=12, height=12, units='cm')
+}
+
+# simulate last plot, but with normal correlation
+simulate_trial <- function () {
+  # generate fake EEG phase data @ 10 ms such that the correlation comes out
+  # similar to real ccorr values.
+  dat <- rnorm_multi(100, 2, r=rbeta(1, 5, 5) * 1 - 0.30, varnames=c('x', 'y'))
+  # downsample the fake data to 20ms resolution
+  dat$x_downsampled <- dat$x[seq(1, 100, by=4)]
+  dat$y_downsampled <- dat$y[seq(1, 100, by=4)]
+  # 'circular' correlation equiv. calculated for both resolutions
+  c(cor(dat$x, dat$y), cor(dat$x_downsampled, dat$y_downsampled))
+}
+if (0) {
+  matrix <- t(replicate(180 * 32, simulate_trial()))
+  write.table(matrix, 'results/sim.dat')
+}
+matrix <- read.table('results/sim.dat')
+colnames(matrix) <- c('high', 'low')
+dat <- as_tibble(matrix) %>%
+  mutate(electrode=rep(lookup$electrode, times=180))
+plt <- ggplot(dat, aes(high, low, colour=electrode)) +
+  geom_point(alpha=0.5) +
+  theme_bw() +
+  labs(x='correlation (simulated; 10ms resolution)', y='correlation (simulated; 20ms resolution)') +
+  theme(legend.position='none',
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave('results/corsimulation.pdf', plt, width=12, height=12, units='cm')
+
+cor(dat$high, dat$low)  # similar to what we see in the actual data
+```
+
+# Plot null distribution (shuffled samples)
+
+```{r}
+if (0) {
+  # attempt at getting the closest to the original matlab code...
+  read_dat(str_c('results/synch_', band, '_timeshuffled.prototype.dat')) %>%
+    # average out trials
+    group_by(measure, sample, electrode, session) %>%
+    summarise(value=mean(value)) %>%
+    # average out sessions
+    group_by(measure, sample, electrode) %>%
+    summarise(value=mean(value)) %>%
+    write_csv(str_c('results/synch_', band, '_timeshuffled.prototype.processed.csv'))
+}
+
+if (0) {
+  read_dat(str_c('results/synch_', band, '_spectrumshuffled.prototype.dat')) %>%
+    group_by(measure, sample, electrode, session) %>%
+    summarise(value=mean(value)) %>%
+    group_by(measure, sample, electrode) %>%
+    summarise(value=mean(value)) %>%
+    write_csv(str_c('results/synch_', band, '_spectrumshuffled.prototype.processed.csv'))
+}
+
+timeshuffled <- read_csv(str_c('results/synch_', band, '_timeshuffled.prototype.processed.csv'))
+spectrumshuffled <- read_csv(str_c('results/synch_', band, '_spectrumshuffled.prototype.processed.csv'))
+
+averaged <- actual %>%
+  group_by(measure, sample, electrode, session) %>%
+  summarise(value=mean(value)) %>%
+  group_by(measure, sample, electrode) %>%
+  summarise(value=mean(value))
+
+if (band == 'alpha') {
+  plt <- ggplot(bind_rows(
+    timeshuffled %>% mutate(source='time shuffled', sample=as.character(sample)),
+    spectrumshuffled %>% mutate(source='spectrum shuffled', sample=as.character(sample)),
+    averaged %>% mutate(source='empirical data')
+  ), aes(value, fill=source)) +
+    geom_density(alpha=0.5, colour='transparent') +
+    facet_wrap(vars(measure), scales='free_x') +
+    theme_bw() +
+    theme(legend.position='bottom') +
+    scale_x_continuous(guide = guide_axis(n.dodge=2))
+
+  ggsave(str_c('results/shuffledistributions.pdf'), plt, width=12, height=8, units='cm')
+}
+
+
+
+if (band == 'theta') {
+  # theta available only, so doesn't respect the band variable.
+  orig = read_table('results/old/synch_shuffledTimes_meanSamples_theta.orig.dat') %>%
+    filter(chans %in% c('A1_A1', 'A2_A2')) %>%
+    mutate(source='original', mean_synch=as.numeric(mean_synch), chans=if_else(chans == 'A1_A1', 'Fp1', 'AF3')) %>%
+    rename(value=mean_synch, electrode=chans)
+  
+  rawshuffled <- timeshuffled %>%
+    filter(electrode %in% c('Fp1', 'AF3'), measure == 'plv') %>%
+    mutate(source='EEG signal shuffled over time') %>%
+    select(-measure)
+  
+  ggplot(bind_rows(orig, rawshuffled), aes(value)) +
+    geom_histogram(alpha=0.5) +
+    facet_grid(vars(source), vars(electrode))
+}
+if (band == 'theta') {
+  ggplot(bind_rows(orig, rawshuffled), aes(value, colour=source)) +
+    geom_density(alpha=0.5, colour='transparent') +
+    facet_grid(vars(electrode))
+}
+```
+
+```{r}
+# plot the result
+plot2 <- function (dist, stat) {
+  ggplot(dist, aes(value)) +
+    geom_histogram(alpha=0.5) +
+    geom_vline(data=stat, aes(xintercept=value)) +
+    facet_wrap(vars(electrode))
+}
+
+perm.test <- function(dist, stat) {
+  dist %>%
+    inner_join(stat %>% ungroup() %>% select(measure, electrode, stat=value)) %>%
+    group_by(measure, electrode) %>%
+    # See Phipson & Smith (2010) for the reasoning behind both '+1's.
+    summarise(p.value=(min(
+      sum(stat <= value),
+      sum(stat >= value)
+    ) + 1) / (n() + 1) * 2)
+}
+
+plot.perm.test <- function (dist, stat) {
+  info <- process.p.values(perm.test(dist, stat))
+  info$data %>%
+    electrode_locations() %>%
+    ggplot(aes(x, y, fill=z.value, z=z.value)) +
+      geom_topo(interp_limit='head', interpolate=TRUE, color='black') +
+      scale_fill_viridis_c(limits=c(info$threshold.z, NA), oob = scales::squish) +
+      coord_fixed() +
+      theme_void() +
+      facet_wrap(vars(measure))
+}
+
+process.p.values <- function(data) {
+  threshold <- bh(data$p.value, 0.05)
+  if (is.na(threshold)) {
+    warning('The Benjami-Hochberg procedure rejected no hypotheses')
+    threshold.z <- NA # nothing significant; the images will be grey
+  } else {
+    threshold.z <- qnorm(1 - threshold / 2)
+    print(str_c('Threshold: ', threshold.z))
+  }
+
+  list(data=mutate(data, z.value=qnorm(1 - p.value / 2)),
+     threshold=threshold,
+     threshold.z=threshold.z)
+}
+
+plot2(filter(timeshuffled, measure == 'plv'), filter(averaged, measure == 'plv')) + labs(title='PLV_t')
+plot2(filter(spectrumshuffled, measure == 'ccorr'), filter(averaged, measure == 'ccorr')) + labs(title='CCorr_t')
+
+perm.test(spectrumshuffled, averaged) %>%
+  arrange(measure, p.value) %>%
+  View()
+  group_by(measure) %>%
+  filter(row_number() <= 5)
+
+bh <- function(p, alpha) {
+  p <- sort(p)
+  m = length(p)
+  k = 1:m
+  # + 1 because we reject H0 for all p-values < the k-th one.
+  p[max(which(p <= k/m*alpha))]
+}
+```
+
+# Plot null distribution (shuffled dyads)
+
+```{r}
+if (0) {
+  read_dat(str_c('results/synch_', band, '_dyadshuffled.prototype.dat')) %>%
+    # average out trials
+    group_by(measure, electrode, sample) %>%
+    summarise(value=mean(value)) %>%
+    write_csv(str_c('results/synch_', band, '_dyadshuffled.prototype.processed.csv'));
+}
+dyadshuffled <- read_csv(str_c('results/synch_', band, '_dyadshuffled.prototype.processed.csv'))
+
+plot2(filter(dyadshuffled, measure == 'plv', electrode == 'F4'), filter(averaged, measure == 'plv', electrode == 'F4')) + labs(title='PLV_t')
+plot2(filter(dyadshuffled, measure == 'ccorr'), filter(averaged, measure == 'ccorr')) + labs(title='CCorr_t')
+
+perm.test(dyadshuffled, averaged) %>%
+  arrange(measure, p.value) %>%
+  group_by(measure) %>%
+  filter(row_number() <= 5)
+
+timeshuffledplt <- plot.perm.test(timeshuffled, averaged)
+spectrumshuffledplt <- plot.perm.test(spectrumshuffled, averaged)
+dyadshuffledplt <- plot.perm.test(dyadshuffled, averaged)
+plt <- ggarrange(timeshuffledplt, spectrumshuffledplt, dyadshuffledplt, nrow=3, labels=c('A', 'B', 'C'))
+
+ggsave(str_c('results/permutation_', band, '.pdf'), plt, width=12, height=12, units='cm')
+```
+
+# Phase plots
+
+```{r}
+circular_plot <- function(p) {
+  p +
+    geom_segment(size=3, lineend='round') +
+    # use a familiar coordinate system for phases/angles
+    coord_polar(start=-0.5 * pi, direction=-1) +
+    scale_x_continuous(limits=c(0, 2 * pi), labels=c('0', '½π', 'π', '³⁄₂π'), breaks=c(0, 0.5, 1, 1.5) * pi) +
+    scale_y_discrete(labels=NULL, breaks=NULL) +
+    theme(legend.position='bottom')
+}
+
+phase_plot <- function(dat, result) {
+  circular_plot(ggplot(dat, aes(value, xend=value, y=0, yend=1, color=time))) +
+    labs(x='', y='') +
+    labs(color='time', title=result) +
+    facet_wrap(vars(name))
+}
+
+animated_phase_plot <- function (dat, result) {
+  anim_save(str_c('results/', result, '.gif'),
+    circular_plot(ggplot(dat, aes(value, xend=value, y=0, yend=1, linetype=name, color=name))) +
+      labs(x='', y='') +
+      labs(color='', linetype='', title=str_c(result, ', time={current_frame}')) +
+      transition_manual(time))
+}
+
+# based on calculateMeasures.m
+ccorr <- function (phi, psi) {
+  phi_bar = Arg(sum(exp(1i * phi)))
+  psi_bar = Arg(sum(exp(1i * psi)))
+  sin_phi_diff = sin(phi - phi_bar)
+  sin_psi_diff = sin(psi - psi_bar)
+
+  num = sum(sin_phi_diff * sin_psi_diff)
+  denom = sqrt(sum(sin_phi_diff^2) * sum(sin_psi_diff^2))
+  num / denom
+}
+
+plv <- function(phi, psi) {
+  Mod(mean(exp(1i * (phi - psi))))
+}
+
+imagcoh <- function (phi, psi) {
+  # fix the amplitude at 1
+  xi <- cos(phi) + 1i * sin(phi)
+  xj <- cos(psi) + 1i * sin(phi)
+  conjXj <- Conj(xj)
+
+  Sij <- mean(xi * conjXj)
+  Sii <- mean(xi * Conj(xi))
+  Sjj <- mean(xj * conjXj)
+
+  Im(Sij / sqrt(Sii * Sjj))
+}
+
+phase_plots <- function(phi, psi, title) {
+  result <- str_c('Phase plot (', title, '): circular correlation=', sprintf('%.2f', ccorr(phi, psi)), ', PLV=', sprintf('%.2f', plv(phi, psi)))
+  phase.dat <- tibble(`Phases φₜ`=phi %% (2 * pi), `Phases ψₜ`=psi %% (2 * pi)) %>%
+    mutate(time=row_number() - 1) %>%
+    pivot_longer(starts_with('Phases'))
+
+  animated_phase_plot(phase.dat, result)
+  phase_plot(phase.dat, result)
+}
+
+a <- 0:11/12 * 2 * pi
+b <- a
+
+phase_plots(a, b, 'ψ = φ')
+
+b <- -a
+phase_plots(a, b, 'ψ = -φ')
+
+b <- a * 2
+phase_plots(a, b, 'ψ = φ * 2')
+
+b <- a + pi
+phase_plots(a, b, 'ψ = φ + π')
+
+b <- a + pi / 2
+phase_plots(a, b, 'ψ = φ + ½π')
+
+amplitudes = rep(1, 12)
+plot(fft(amplitudes * (cos(a) + 1i * sin(a)), inverse=T))
+
+
+# start values
+phi = runif(1, -pi, pi)
+psi = runif(1, -pi, pi)
+# add drift trend
+phi = phi + 1:100 * 0.6
+psi = psi + 1:100 * 0.6
+# add noise to one of them
+#phi = phi + sin(1:100 * 0.5)
+# make into phase values
+phi = phi %% pi
+psi = psi %% pi
+
+data.frame(time=1:100, phi=phi, psi=psi) %>%
+  pivot_longer(c(phi, psi)) %>%
+  ggplot(aes(time, value, colour=name)) + geom_line()
+
+plv(phi, psi)
+ccorr(phi, psi)
+
+find_solution <- function (heuristic, target, repetitions, start, end) {
+  best = data.frame(error=c(Inf))
+  for (repetition in 1:repetitions) {
+    # generate random signals
+    phi <- runif(start, -pi, pi)
+    psi <- runif(start, -pi, pi)
+    # optimize the error by letting it get rid of (start - end) outliers
+    while (length(phi) > end) {
+      result = vector(mode='numeric', length=length(phi))
+      for (j in seq_along(phi)) {
+        phi.mod <- phi[-j]
+        psi.mod <- psi[-j]
+        result[j] <- heuristic(ccorr(phi.mod, psi.mod), imagcoh(phi.mod, psi.mod), plv(phi.mod, psi.mod))
+      }
+    
+      j <- which.min(result)
+      phi <- phi[-j]
+      psi <- psi[-j]
+    }
+    # if this is the best result so far, replace the current one.
+    c <- ccorr(phi, psi)
+    i <- imagcoh(phi, psi)
+    p <- plv(phi, psi)
+    error <- heuristic(c, i, p)
+    if (error < best$error[1]) {
+      best <- data.frame(phi=phi, psi=psi, ccorr=c, imagcoh=i, plv=p, error=error, target=target)
+    }
+  }
+  best
+}
+
+# 1: force measure values simultaneously
+heuristics <- c(
+  function (ccorr, imagcoh, plv) {1 - ccorr + 1 - imagcoh + plv},
+  function (ccorr, imagcoh, plv) {1 - ccorr + 1 - imagcoh + 1 - plv},
+  function (ccorr, imagcoh, plv) {1 - ccorr + abs(imagcoh) + plv},
+  function (ccorr, imagcoh, plv) {1 - ccorr + abs(imagcoh) + 1 - plv},
+  function (ccorr, imagcoh, plv) {1 - ccorr + 1 + imagcoh + plv},
+  function (ccorr, imagcoh, plv) {1  -ccorr + 1 + imagcoh + 1 - plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + 1 - imagcoh + plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + 1 - imagcoh + 1 - plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + abs(imagcoh) + plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + abs(imagcoh) + 1 - plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + 1 + imagcoh + plv},
+  function (ccorr, imagcoh, plv) {abs(ccorr) + 1 + imagcoh + 1 - plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + 1 - imagcoh + plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + 1 - imagcoh + 1 - plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + abs(imagcoh) + plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + abs(imagcoh) + 1 - plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + 1 + imagcoh + plv},
+  function (ccorr, imagcoh, plv) {1 + ccorr + 1 + imagcoh + 1 - plv}
+)
+targets <- c(
+  "pos CCorr, pos ImagCoh, low PLV",
+  "pos CCorr, pos ImagCoh, high PLV",
+  "pos CCorr, no ImagCoh, low PLV",
+  "pos CCorr, no ImagCoh, high PLV",
+  "pos CCorr, neg ImagCoh, low PLV",
+  "pos CCorr, neg ImagCoh, high PLV",
+  "no CCorr, pos ImagCoh, low PLV",
+  "no CCorr, pos ImagCoh, high PLV",
+  "no CCorr, no ImagCoh, low PLV",
+  "no CCorr, no ImagCoh, high PLV",
+  "no CCorr, neg ImagCoh, low PLV",
+  "no CCorr, neg ImagCoh, high PLV",
+  "neg CCorr, pos ImagCoh, low PLV",
+  "neg CCorr, pos ImagCoh, high PLV",
+  "neg CCorr, no ImagCoh, low PLV",
+  "neg CCorr, no ImagCoh, high PLV",
+  "neg CCorr, neg ImagCoh, low PLV",
+  "neg CCorr, neg ImagCoh, high PLV"
+)
+if (FALSE) {
+  df = data.frame()
+  for (i in seq_along(heuristics)) {
+    df <- bind_rows(df, find_solution(heuristics[[i]], targets[i], 100, 100, 20))
+  }
+  write_csv(df, 'results/simulation_local_search.csv')
+}
+df <- read_csv('results/simulation_local_search.csv')
+
+plt <- df %>%
+  group_by(target) %>%
+  filter(error == min(error)) %>%
+  separate(target, c('ccorr.target', 'imagcoh.target', 'plv.target'), sep='(, )') %>%
+  plot_two_phases(alpha=0.8) +
+    aes(color=error) +
+    theme(legend.key.height=unit(15, "mm")) +
+    facet_grid(vars(ccorr.target), vars(plv.target, imagcoh.target))
+
+ggsave('results/simulation_local_search.pdf', plt, width=250, height=130, units = "mm")
+
+# 3: force individually - simpler algorithm
+
+if (FALSE) {
+  df2 <- data.frame()
+  df3 <- data.frame()
+  df4 <- data.frame()
+  for (i in 1:9) {
+    target <- seq(-1, 1, length.out=9)[i]
+    df2 <- bind_rows(df2, find_solution(function (ccorr, imagcoh, plv) { (ccorr - target)^2 }, i, 1000, 40, 20))
+    df3 <- bind_rows(df3, find_solution(function (ccorr, imagcoh, plv) { (imagcoh - target)^2 }, i, 20, 200, 20))
+  
+    target <- seq(0, 1, length.out=9)[i]
+    df4 <- bind_rows(df4, find_solution(function (ccorr, imagcoh, plv) { (plv - target)^2 }, i, 1000, 40, 20))
+  }
+
+  bind_rows(
+    df2 %>% mutate(measure='circular correlation', result=ccorr),
+    df3 %>% mutate(measure='imaginary part of coherency', result=imagcoh),
+    df4 %>% mutate(measure='phase locking value', result=plv)
+  ) %>%
+    write_csv('results/simulation_force_individually.csv')
+}
+plt <- read_csv('results/simulation_force_individually.csv') %>%
+  plot_two_phases(alpha=0.65) +
+  facet_nested_wrap(vars(measure, round(result, 2)), nrow=3)
+
+ggsave('results/simulation_force_individually.pdf', plt, width=250, height=127, units = "mm")
+
+# semi-power analysis
+
+c <- replicate(10000, ccorr(runif(100, -pi, pi), runif(100, -pi, pi)))
+p <- replicate(10000, plv(runif(100, -pi, pi), runif(100, -pi, pi)))
+i <- replicate(10000, imagcoh(runif(100, -pi, pi), runif(100, -pi, pi)))
+
+plot_null <- function (value) {
+  low <- quantile(value, 0.025)
+  high <- quantile(value, 0.975)
+  breaks <- c(floor(max(value) * 10) / 10, low, high)
+  if (abs(low) > 0.02) {
+    # add 0
+    breaks <- c(0, breaks)
+  }
+  minimum <- ceiling(min(value) * 10) / 10
+  if (abs(low - minimum) > 0.02) {
+    # add the minimum
+    breaks <- c(minimum, breaks)
+  }
+
+  ggplot(data.frame(), aes(value, fill=low < value & value < high)) +
+    geom_histogram(bins=100) +
+    theme_bw() +
+    theme(legend.position='none', axis.title.y=element_blank()) +
+    scale_x_continuous(breaks=breaks, labels=function (b) { round(b, 3) }, minor_breaks=seq(-1, 1, length.out=21))
+}
+
+plt <- annotate_figure(ggarrange(
+  plot_null(c) +
+    labs(x='circular correlation value'),
+  plot_null(p) +
+    labs(x='phase locking value'),
+  plot_null(i) +
+    labs(x='imaginary part of coherency value'),
+  ncol=1
+), left=text_grob('count', rot=90, size=12))
+ggsave('results/simulation_null.pdf', plt, width=12, height=8, units='cm')
+```
+
+
+# Slope analysis
+
+```{r}
+if (band == 'alpha') {
+  timecourse <- actual %>%
+    filter(electrode == 'Pz', session <= 5) %>%
+    ggplot(aes(trial, value)) +
+      geom_line() +
+      geom_smooth() +
+      facet_grid(vars(measure), vars(str_c('session: ', session)), scales='free_y') +
+      theme_bw() +
+      labs(y='IBS value')
+  ggsave(str_c('results/timecourse_repr.pdf'), timecourse, width=12, height=8, units='cm')
+}
+
+d <- actual %>%
+  mutate(session=as.factor(session),
+         electrode=as.factor(electrode))
+
+m1 <- bam(value~s(trial) + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'plv'), discrete=T)
+m2 <- bam(value~1 + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'plv'), discrete=T)
+compareML(m1, m2)
+
+m1 <- bam(value~s(trial) + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'ccorr'), discrete=T)
+m2 <- bam(value~1 + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'ccorr'), discrete=T)
+compareML(m1, m2)
+
+m1 <- bam(value~s(trial) + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'imagcoh'), discrete=T)
+m2 <- bam(value~1 + s(trial, session, bs='fs', m=1) + s(trial, electrode, bs='fs', m=1), data=filter(d, measure == 'imagcoh'), discrete=T)
+compareML(m1, m2)
+
+plot_smooth(m1, view='trial')  # in the case of theta, saved in results.
+
+slopes <- actual %>%
+  group_by(measure, session, electrode) %>%
+  summarise(slope=lm(value~trial)$coefficients[2])
+
+slopeplt <- slopes %>%
+  group_by(measure, electrode) %>%
+  summarise(slope=mean(slope)) %>%
+  electrode_locations() %>%
+  ggplot(aes(x, y, fill=slope, z=slope)) +
+    geom_topo(interp_limit='head', interpolate=TRUE, color='black') +
+    scale_fill_viridis_c(oob=scales::squish) +
+    coord_fixed() +
+    theme_void() +
+    facet_wrap(vars(measure))
+
+actual %>%
+  filter(measure == 'plv', electrode == 'Pz') %>%
+  ggplot(aes(trial, value)) +
+    geom_point() +
+    geom_smooth(se=F, method='lm') +
+    facet_wrap(vars(sprintf('session %02d', session)))
+
+#ttest <- actual %>%
+#  group_by(measure, electrode, session) %>%
+#  summarise(slope=lm(value~trial)$coefficients[2]) %>%
+#  group_by(measure, electrode) %>%
+#  summarise(p.value=t.test(slope)$p.value) %>%
+#  mutate(method='t-test')
+
+# for some sessions and measures, the difference between sessions is small
+# enough that the random effect results in a singular fit. But probably still
+# best to (conservatively) include it, as it's not the case for every electrode.
+lme <- actual %>%
+  group_by(measure, electrode) %>%
+  summarise(p.value=anova(lmer(value~trial + (1 | session), REML=FALSE), lmer(value~1 + (1 | session), REML=FALSE))$`Pr(>Chisq)`[2])
+
+bind_rows(ttest, lme) %>% mutate(p.value=p.adjust(p.value, method='fdr')) %>% arrange(p.value)
+
+info <- lme %>% #bind_rows(ttest, lme) %>%
+  electrode_locations() %>%
+  process.p.values()
+
+signifplt <- ggplot(info$data, aes(x, y, fill=z.value, z=z.value)) +
+  geom_topo(interp_limit='head', interpolate=TRUE, color='black') +
+  scale_fill_viridis_c(limits=c(info$threshold.z, NA), oob=scales::squish) +
+  coord_fixed() +
+  theme_void() +
+  facet_wrap(vars(measure))
+
+plt <- ggarrange(slopeplt, signifplt, labels=c('A', 'B'), nrow=2)
+ggsave(str_c('results/slopes_', band, '.pdf'), plt, width=12, height=8, units='cm')
+
+```
+
+# Old
+
+```{r}
+plot2 <- function(dat) {
+  ggplot(dat, aes(trial, value, colour=interaction(stim_type, load_condition))) +
+    geom_line() +
+    facet_grid(vars(paste('session', session)), vars(paste(measure, '_t', sep=''))) +
+    theme(legend.position='bottom')
+}
+plot2(filter(actual, electrode=='Fp1', session %in% c('2', '3', '4', '5'))) + labs(title=str_c('Inter-brain synchrony. Channel (homologous): Fp1; ', band, ' band'))
+plot2(filter(actual, electrode=='Fp2', session %in% c('2', '3', '4', '5'))) + labs(title=str_c('Inter-brain synchrony. Channel (homologous): Fp2; ', band, ' band'))
+
+ggplot(filter(actual, electrode=='Fp1', session == '2', measure == 'imagcoh'), aes(trial, value)) +
+  geom_line()
+```
+
+```{r}
+# some more direct exploration of the data
+# base <- nullshuffled %>%
+#   filter(channel == '*A1', measure == 'plv', trial==90)
+# 
+# stat <- actual %>%
+#   filter(channel == '*A1', measure == 'plv', trial==90, session %in% c('2', '3', '4', '5'))
+# 
+# ggplot(base, aes(value)) +
+#   geom_histogram() +
+#   geom_vline(data=stat, aes(xintercept=value)) +
+#   facet_wrap(vars(paste('session', session))) +
+#   labs(title='Actual PLV_t value with null distribution (based on within-trial shuffling)\nFp1 electrodes (homologous); 90th trial')
+```
+
+# Validation
+
+```{r}
+read_table(str_c('results/old/synch_theta.orig.dat')) %>%
+  ggplot(aes(trial, A1_A1)) +
+    geom_line()
+if (band == 'theta') {
+  # sanity check: do original and new code match?
+  # only theta data available for original
+  actual %>% filter(electrode == 'Fp1', session == 2, measure == 'plv') %>%
+    ggplot(aes(trial, value)) +
+      geom_line()
+}
+```
+
+
+# Merge data frames
+
+```{r}
+erp <- read_dat('results/singletrialerp.dat') %>%
+  mutate(type='cwt')
+erpold <- read_dat('results/singletrialerp.old.dat') %>%
+  mutate(type='max')
+
+# (but first some single trial ERP representation comparison)
+bind_rows(erp, erpold) %>%
+  pivot_wider(names_from=c(type), values_from=value) %>%
+  filter(electrode == 'Pz',
+         #session == 42
+         ) %>%
+  ggplot(aes(log(pmax(0, cwt)), fill=measure)) +
+    geom_histogram() +
+    facet_wrap(vars(electrode, session))
+```
+
+```{r}
+normalize = function (x) {
+  as.vector(scale(x))
+}
+
+alpha <- read_dat('results/synch_alpha.prototype.dat') %>%
+  mutate(band='alpha')
+theta <- read_dat('results/synch_theta.prototype.dat') %>%
+  mutate(band='theta')
+erp <- read_dat('results/singletrialerp.dat') %>%
+  # 0.05 is chosen by eye. Not ideal (especially pre-split!), but it only affects a very small amount of data...
+  mutate(value=log(pmax(0.05, value))) %>%
+  pivot_wider(names_from=c(measure, electrode), values_from=value)
+
+prediction <- bind_rows(alpha, theta) %>%
+  pivot_wider(names_from=measure, values_from=value) %>%
+  # convert to an approximately normal scale
+  mutate(plv=qnorm(plv),
+         ccorr=atanh(ccorr),
+         imagcoh=atanh(imagcoh)) %>%
+  pivot_wider(names_from=c(band, electrode), values_from=c(plv, ccorr, imagcoh)) %>%
+  inner_join(erp)
+
+# split out train/test for prediction.Rmd
+#
+# sort(sample(unique(actual$session), 8, replace=FALSE))
+# [1]  5  7 15 17 20 28 30 40
+#
+test_sessions <- c(5, 7, 15, 17, 20, 28, 30, 40)
+prediction %>%
+  filter(!(session %in% test_sessions)) %>%
+  write_csv(str_c('results/train.csv'))
+prediction %>%
+  filter(session %in% test_sessions) %>%
+  write_csv(str_c('results/test.csv'))
+```
+
+# Robust ccorr
+
+```{r}
+# understanding Pewsey e.a. 2013:
+conv <- function (x) {
+  pi - abs(pi - abs(x))
+}
+plot(-8:8 / 4, conv(-8:8 / 4 * pi) / pi)
+
+tmp <- read_dat('results/extra/robust.dat') %>%
+  filter(measure %in% c('ccorr', 'robccorr'))
+
+ggplot(filter(tmp, electrode == 'Pz'), aes(trial, value, colour=measure)) +
+  geom_line(alpha=0.5) +
+  facet_wrap(vars(session))
+
+
+tmp %>%
+  pivot_wider(names_from=measure, values_from=value) %>%
+  filter(electrode == 'Pz') %>%
+  ggplot(aes(ccorr, robccorr)) +
+    geom_point() +
+    geom_smooth(method='lm') +
+    facet_wrap(vars(session))
+
+```
+
+
+# CCorr
+
+```{r}
+dat <- rnorm_multi(100, 2, sd=1.5, r=0.9, varnames=c('a', 'b'))
+dat$circa <- dat$a %% (2 * pi) - pi
+dat$circb <- dat$b %% (2 * pi) - pi
+plot(dat$a, dat$b)
+plot(dat$circa, dat$circb)
+cor(dat$a, dat$b)
+cor(dat$circa, dat$circb)
+
+plv(dat$circa, dat$circb)
+ccorr(dat$circa, dat$circb)
+```
