@@ -18,6 +18,8 @@ PLV measure because of its natural interpretation and good performance on
 simulated data. We present a robust version of the circular correlation measure
 and make recommendations for how to best perform an IBS analysis.
 
+See for the full thesis: https://fse.studenttheses.ub.rug.nl/29088/
+
 This repository contains the code of my final project for the Computational
 Cognitive Science study at the University of Groningen.
 
